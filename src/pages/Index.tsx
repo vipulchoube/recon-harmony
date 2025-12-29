@@ -1,13 +1,36 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from 'react';
+import { UserRole } from '@/types/recon';
+import { ReconProvider } from '@/context/ReconContext';
+import { Header } from '@/components/Header';
+import { ReconUserScreen } from '@/components/screens/ReconUserScreen';
+import { OpsUserScreen } from '@/components/screens/OpsUserScreen';
+import { AdminUserScreen } from '@/components/screens/AdminUserScreen';
 
 const Index = () => {
+  const [activeRole, setActiveRole] = useState<UserRole>('ops');
+
+  const renderScreen = () => {
+    switch (activeRole) {
+      case 'recon':
+        return <ReconUserScreen />;
+      case 'ops':
+        return <OpsUserScreen />;
+      case 'admin':
+        return <AdminUserScreen />;
+      default:
+        return <OpsUserScreen />;
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+    <ReconProvider>
+      <div className="min-h-screen bg-background">
+        <Header activeRole={activeRole} onRoleChange={setActiveRole} />
+        <main className="container mx-auto px-4 py-6 animate-fade-in">
+          {renderScreen()}
+        </main>
       </div>
-    </div>
+    </ReconProvider>
   );
 };
 
