@@ -1,9 +1,10 @@
-import { BarChart3, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
+import { BarChart3, TrendingUp, AlertCircle, CheckCircle, FileSpreadsheet } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRecon } from '@/context/ReconContext';
+import { ReconciliationDashboard } from '@/components/ReconciliationDashboard';
 
 export function ReconUserScreen() {
-  const { exceptions } = useRecon();
+  const { exceptions, reconciliationResult } = useRecon();
 
   const openCount = exceptions.filter((e) => e.status === 'open').length;
   const reviewCount = exceptions.filter((e) => e.status === 'under_review').length;
@@ -83,6 +84,26 @@ export function ReconUserScreen() {
           </Card>
         ))}
       </div>
+
+      {/* Reconciliation Results - Show when available */}
+      {reconciliationResult && (
+        <ReconciliationDashboard result={reconciliationResult} />
+      )}
+
+      {/* Placeholder when no reconciliation results */}
+      {!reconciliationResult && (
+        <Card className="glass-card">
+          <CardContent className="py-12">
+            <div className="text-center text-muted-foreground">
+              <FileSpreadsheet className="h-16 w-16 mx-auto mb-4 opacity-50" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No Reconciliation Results</h3>
+              <p className="text-sm">
+                Upload ledger and statement files in the Admin screen to run reconciliation analysis.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="glass-card">
         <CardHeader>
