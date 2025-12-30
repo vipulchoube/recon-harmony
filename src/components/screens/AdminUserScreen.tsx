@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useDataAgent } from '@/hooks/useDataAgent';
-
+import { AdminAgentPanel } from '@/components/AdminAgentPanel';
 
 export function AdminUserScreen() {
   const { uploadedFiles, addUploadedFile, updateFileProgress, setReconciliationResult } = useRecon();
@@ -254,6 +254,8 @@ export function AdminUserScreen() {
         </Card>
       </div>
 
+      {/* Agent Analysis Panel */}
+      <AdminAgentPanel state={agentState} />
 
       {/* Uploaded Files History */}
       {uploadedFiles.length > 0 && (
