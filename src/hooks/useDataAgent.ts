@@ -3,15 +3,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   DataQualityResult, 
   SchemaAnalysisResult, 
-  ETLScriptResult 
+  ETLScriptResult,
+  ReconciliationResult 
 } from '@/types/recon';
 import { toast } from 'sonner';
 
 export interface AgentState {
   isAnalyzing: boolean;
-  currentStep: 'idle' | 'data_quality' | 'schema_analysis' | 'generate_etl' | 'complete';
+  currentStep: 'idle' | 'data_quality' | 'schema_analysis' | 'reconciliation' | 'generate_etl' | 'complete';
   dataQuality: DataQualityResult | null;
   schemaAnalysis: SchemaAnalysisResult | null;
+  reconciliationResult: ReconciliationResult | null;
   etlScript: ETLScriptResult | null;
   error: string | null;
 }
@@ -22,6 +24,7 @@ export function useDataAgent() {
     currentStep: 'idle',
     dataQuality: null,
     schemaAnalysis: null,
+    reconciliationResult: null,
     etlScript: null,
     error: null,
   });
@@ -34,6 +37,7 @@ export function useDataAgent() {
       error: null,
       dataQuality: null,
       schemaAnalysis: null,
+      reconciliationResult: null,
       etlScript: null,
     }));
 
@@ -70,11 +74,29 @@ export function useDataAgent() {
       setState(prev => ({ 
         ...prev, 
         schemaAnalysis: schemaResult,
-        currentStep: 'generate_etl' 
+        currentStep: 'reconciliation' 
       }));
       toast.success('Schema analysis completed');
 
-      // Step 3: Generate ETL Script
+      // Step 3: Reconciliation with Exception Detection
+      toast.info('Agent: Performing trade reconciliation with exception detection...');
+      const reconResponse = await supabase.functions.invoke('analyze-data', {
+        body: { ledgerData, statementData, analysisType: 'reconciliation' }
+      });
+
+      if (reconResponse.error) {
+        throw new Error(reconResponse.error.message || 'Reconciliation failed');
+      }
+
+      const reconResult = reconResponse.data?.result as ReconciliationResult;
+      setState(prev => ({ 
+        ...prev, 
+        reconciliationResult: reconResult,
+        currentStep: 'generate_etl' 
+      }));
+      toast.success('Reconciliation completed');
+
+      // Step 4: Generate ETL Script
       toast.info('Agent: Generating Oracle ETL script...');
       const etlResponse = await supabase.functions.invoke('analyze-data', {
         body: { ledgerData, statementData, analysisType: 'generate_etl' }
@@ -112,6 +134,7 @@ export function useDataAgent() {
       currentStep: 'idle',
       dataQuality: null,
       schemaAnalysis: null,
+      reconciliationResult: null,
       etlScript: null,
       error: null,
     });
