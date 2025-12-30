@@ -8,8 +8,26 @@ const corsHeaders = {
 interface AnalysisRequest {
   ledgerData: string;
   statementData: string;
-  analysisType: 'data_quality' | 'schema_analysis' | 'generate_etl';
+  analysisType: 'data_quality' | 'schema_analysis' | 'generate_etl' | 'reconciliation';
 }
+
+const EXCEPTION_RULES = `
+Exception Rules for Trade Reconciliation (codes 101-106):
+
+101 - Feed Issue: Trades where settlement feed is missing or delayed. Match using Trade_Date + SWIFTRef + TransactionRef. If no matching record in Settlement File, flag as Feed Issue.
+
+102 - Cancelled Trade: Lifecycle mismatch where internal shows CANCELLED but external shows SETTLED. Match by Transaction_Ref + SwiftRef. Flag if Ledger.Trade_Status = CANCELLED AND Settlement.Settlement_State = SETTLED.
+
+103 - Unsettled Trade: Trades open internally but settled in market. Match by Transaction_Ref + SwiftRef. Flag if Ledger.Trade_Status = OPEN AND Settlement.Settlement_State = SETTLED.
+
+104 - Not Settled in Market but Closed Internally: Trades manually marked settled internally but not in market. Match by Transaction_Ref + SWIFTRef + Quantity. Flag if Ledger.Status = MANUAL_SETTLED AND Settlement.Status != SETTLED.
+
+105 - Booked to Wrong Account: Internal ledger recorded against incorrect account. Match all fields (Transaction_Ref, SwiftRef, Quantity, Amount, ValueDate) but BalancePool differs OR TradeType/Direction mismatch.
+
+106 - Partial Settlement: Only portion of quantity settled. Match by Transaction_Ref + SWIFTRef + Quantity. Flag if Ledger.Settled_Quantity > Settlement.Settled_Quantity.
+
+OTHER - Any exception that doesn't fit codes 101-106. Provide detailed description with other_subtype and other_description.
+`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -151,6 +169,109 @@ STATEMENT DATA SAMPLE:
 ${statementData}
 
 Generate a production-ready Oracle ETL script with staging tables, transformations, and reconciliation logic.`;
+    } else if (analysisType === 'reconciliation') {
+      systemPrompt = `You are a trade reconciliation AI agent. Analyze ledger and statement data to perform matching and exception detection.
+
+${EXCEPTION_RULES}
+
+You MUST respond with a JSON object with this EXACT structure:
+{
+  "summary": [
+    {
+      "exceptionCode": "101" | "102" | "103" | "104" | "105" | "106" | "OTHER",
+      "exceptionDescription": "FEED ISSUE" | "CANCELLED TRADE" | "UNSETTLED TRADE" | "NOT SETTLED IN MARKET" | "BOOKED TO WRONG ACCOUNT" | "PARTIAL SETTLEMENT" | "OTHER",
+      "count": number
+    }
+  ],
+  "matching": {
+    "matchedCount": number,
+    "unmatchedCount": number,
+    "totalRecords": number,
+    "matchedRecords": [
+      {
+        "exception_code": "101" | "102" | "103" | "104" | "105" | "106" | "OTHER",
+        "reason_code": "FEED ISSUE" | "TRADE CANCELLED IN GLOSS" | "UNSETTLED IN GLOSS" | "NOT SETTLED IN MARKET" | "BOOKED TO WRONG ACCOUNT" | "PARTIAL SETTLEMENT" | "OTHER",
+        "match_status": "MATCHED" | "UNMATCHED",
+        "confidence": number (0-1),
+        "transaction_ref": "string",
+        "ledger_swiftref": "string",
+        "settlement_swiftref": "string or null",
+        "isin": "string",
+        "quantity": number,
+        "amount": number,
+        "value_date": "string (DD-MMM format)"
+      }
+    ]
+  },
+  "exceptions": {
+    "exceptionCounts": [
+      {"code": "101" | "102" | "103" | "104" | "105" | "106" | "OTHER", "count": number}
+    ],
+    "records": [
+      {
+        "exception_code": "101" | "102" | "103" | "104" | "105" | "106" | "OTHER",
+        "reason_code": "string",
+        "match_status": "MATCHED" | "UNMATCHED",
+        "confidence": number,
+        "transaction_ref": "string",
+        "ledger_swiftref": "string",
+        "settlement_swiftref": "string or null",
+        "isin": "string",
+        "quantity": number,
+        "amount": number,
+        "value_date": "string"
+      }
+    ],
+    "otherExceptions": [
+      {
+        "transaction_ref": "string",
+        "ledger_index": number,
+        "settlement_index": number or null,
+        "other_subtype": "string (e.g., 'Settled in Wrong Version')",
+        "other_description": "string (detailed explanation)",
+        "reason_code": "OTHER"
+      }
+    ]
+  },
+  "expectedOutput": [
+    {
+      "department": "string or null",
+      "balance_pool": "string or null",
+      "security_isin": "string",
+      "ledger_or_statement_break": "L" | "S",
+      "direction": "Debit" | "Credit",
+      "quantity": number,
+      "amount": number,
+      "currency": "string (e.g., USD)",
+      "value_date": "string (DD-MMM format)",
+      "our_settlement_ref": "string",
+      "reason_code": "string (e.g., FEED ISSUE, TRADE CANCELLED, etc.)"
+    }
+  ]
+}
+
+IMPORTANT:
+- Analyze every row from both ledger and statement
+- Apply matching rules based on exception codes 101-106
+- For any exception not fitting 101-106, classify as OTHER with detailed explanation
+- Calculate confidence scores based on how many matching criteria are met
+- Generate expectedOutput for all records that have exceptions`;
+
+      userPrompt = `Perform trade reconciliation on these CSV files:
+
+LEDGER DATA:
+${ledgerData}
+
+STATEMENT DATA:
+${statementData}
+
+Match records between ledger and statement using the exception rules. For each record:
+1. Try to find a match using Transaction_Ref, SwiftRef, and other key fields
+2. Determine the exception code (101-106 or OTHER) based on the mismatch type
+3. Calculate a confidence score for matched records
+4. Generate the expected output with reason codes
+
+Return the complete reconciliation result as JSON.`;
     }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -206,6 +327,7 @@ Generate a production-ready Oracle ETL script with staging tables, transformatio
       parsedResult = JSON.parse(jsonString);
     } catch (parseError) {
       console.error("Failed to parse AI response as JSON:", parseError);
+      console.error("Raw content:", content);
       parsedResult = { rawResponse: content };
     }
 
