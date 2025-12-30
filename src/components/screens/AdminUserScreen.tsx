@@ -1,9 +1,9 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useRecon } from '@/context/ReconContext';
-import { UploadedFile, SchemaMapping, TransformationRule, DataCheck } from '@/types/recon';
-import { Upload, FileSpreadsheet, Settings2, CheckCircle, XCircle, Loader2, Plus, Bot, Play } from 'lucide-react';
+import { UploadedFile } from '@/types/recon';
+import { Upload, FileSpreadsheet, Settings2, CheckCircle, Loader2, Plus, Bot, Play } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -13,7 +13,7 @@ import { useDataAgent } from '@/hooks/useDataAgent';
 import { AgentAnalysisPanel } from '@/components/AgentAnalysisPanel';
 
 export function AdminUserScreen() {
-  const { uploadedFiles, addUploadedFile, updateFileProgress } = useRecon();
+  const { uploadedFiles, addUploadedFile, updateFileProgress, setReconciliationResult } = useRecon();
   const [isUploading, setIsUploading] = useState<'ledger' | 'statement' | null>(null);
   const ledgerInputRef = useRef<HTMLInputElement>(null);
   const statementInputRef = useRef<HTMLInputElement>(null);
@@ -21,6 +21,13 @@ export function AdminUserScreen() {
   const [ledgerData, setLedgerData] = useState<string>('');
   const [statementData, setStatementData] = useState<string>('');
   const { state: agentState, runAnalysis, reset: resetAgent } = useDataAgent();
+
+  // Save reconciliation result to context when agent completes
+  useEffect(() => {
+    if (agentState.reconciliationResult) {
+      setReconciliationResult(agentState.reconciliationResult);
+    }
+  }, [agentState.reconciliationResult, setReconciliationResult]);
 
   const handleFileUpload = async (type: 'ledger' | 'statement', file: File) => {
     if (!file.name.endsWith('.csv')) {

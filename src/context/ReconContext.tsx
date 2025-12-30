@@ -1,15 +1,17 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { Exception, UploadedFile, Reconciliation, CaseStatus, Comment } from '@/types/recon';
+import { Exception, UploadedFile, Reconciliation, CaseStatus, Comment, ReconciliationResult } from '@/types/recon';
 import { mockExceptions, mockUploadedFiles, mockReconciliations } from '@/data/mockData';
 
 interface ReconContextType {
   exceptions: Exception[];
   uploadedFiles: UploadedFile[];
   reconciliations: Reconciliation[];
+  reconciliationResult: ReconciliationResult | null;
   updateExceptionStatus: (id: string, status: CaseStatus) => void;
   addComment: (exceptionId: string, comment: Omit<Comment, 'id' | 'createdAt'>) => void;
   addUploadedFile: (file: UploadedFile) => void;
   updateFileProgress: (id: string, progress: number, status?: UploadedFile['status']) => void;
+  setReconciliationResult: (result: ReconciliationResult | null) => void;
 }
 
 const ReconContext = createContext<ReconContextType | undefined>(undefined);
@@ -18,6 +20,7 @@ export function ReconProvider({ children }: { children: ReactNode }) {
   const [exceptions, setExceptions] = useState<Exception[]>(mockExceptions);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>(mockUploadedFiles);
   const [reconciliations, setReconciliations] = useState<Reconciliation[]>(mockReconciliations);
+  const [reconciliationResult, setReconciliationResult] = useState<ReconciliationResult | null>(null);
 
   const updateExceptionStatus = (id: string, status: CaseStatus) => {
     setExceptions((prev) =>
@@ -77,10 +80,12 @@ export function ReconProvider({ children }: { children: ReactNode }) {
         exceptions,
         uploadedFiles,
         reconciliations,
+        reconciliationResult,
         updateExceptionStatus,
         addComment,
         addUploadedFile,
         updateFileProgress,
+        setReconciliationResult,
       }}
     >
       {children}
