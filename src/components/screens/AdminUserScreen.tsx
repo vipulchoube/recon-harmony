@@ -192,7 +192,7 @@ export function AdminUserScreen() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm">
               <Bot className="h-4 w-4 text-primary" />
-              Run Agent
+              Setup New Reconciliation Schema
             </CardTitle>
             <CardDescription className="text-xs">Start AI analysis</CardDescription>
           </CardHeader>
@@ -208,7 +208,7 @@ export function AdminUserScreen() {
               ) : (
                 <Play className="h-4 w-4 mr-2" />
               )}
-              {agentState.isAnalyzing ? 'Analyzing...' : 'Run Analysis'}
+              {agentState.isAnalyzing ? 'Analyzing...' : 'Start'}
             </Button>
           </CardContent>
         </Card>
