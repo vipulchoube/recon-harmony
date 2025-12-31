@@ -1,47 +1,47 @@
-import { BarChart3, TrendingUp, AlertCircle, CheckCircle, FileSpreadsheet } from 'lucide-react';
+import { BarChart3, CheckCircle2, XCircle, FileSpreadsheet, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRecon } from '@/context/ReconContext';
 import { ReconciliationDashboard } from '@/components/ReconciliationDashboard';
 
 export function ReconUserScreen() {
-  const { exceptions, reconciliationResult } = useRecon();
+  const { reconciliationResult } = useRecon();
 
-  const openCount = exceptions.filter((e) => e.status === 'open').length;
-  const reviewCount = exceptions.filter((e) => e.status === 'under_review').length;
-  const resolvedCount = exceptions.filter((e) => e.status === 'resolved').length;
-  const totalCount = exceptions.length;
+  const matchedCount = reconciliationResult?.matching?.matchedCount || 0;
+  const unmatchedCount = reconciliationResult?.matching?.unmatchedCount || 0;
+  const totalRecords = reconciliationResult?.matching?.totalRecords || 0;
+  const totalExceptions = reconciliationResult?.exceptions?.records?.length || 0;
 
   const stats = [
     {
       title: 'Total Exceptions',
-      value: totalCount,
-      icon: BarChart3,
+      value: totalExceptions,
+      icon: AlertTriangle,
       trend: '+12%',
       trendUp: true,
-    },
-    {
-      title: 'Open Cases',
-      value: openCount,
-      icon: AlertCircle,
-      trend: '-5%',
-      trendUp: false,
       variant: 'destructive' as const,
     },
     {
-      title: 'Under Review',
-      value: reviewCount,
-      icon: TrendingUp,
-      trend: '+2',
-      trendUp: true,
-      variant: 'warning' as const,
-    },
-    {
-      title: 'Resolved',
-      value: resolvedCount,
-      icon: CheckCircle,
+      title: 'Matched',
+      value: matchedCount,
+      icon: CheckCircle2,
       trend: '+8%',
       trendUp: true,
       variant: 'success' as const,
+    },
+    {
+      title: 'Unmatched',
+      value: unmatchedCount,
+      icon: XCircle,
+      trend: '-5%',
+      trendUp: false,
+      variant: 'warning' as const,
+    },
+    {
+      title: 'Total Records',
+      value: totalRecords,
+      icon: BarChart3,
+      trend: '+2%',
+      trendUp: true,
     },
   ];
 
@@ -104,49 +104,6 @@ export function ReconUserScreen() {
           </CardContent>
         </Card>
       )}
-
-      <Card className="glass-card">
-        <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {exceptions.slice(0, 5).map((exc) => (
-              <div
-                key={exc.id}
-                className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 border border-border/50"
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`h-2 w-2 rounded-full ${
-                      exc.status === 'open'
-                        ? 'bg-destructive'
-                        : exc.status === 'under_review'
-                        ? 'bg-warning'
-                        : 'bg-success'
-                    }`}
-                  />
-                  <div>
-                    <p className="font-medium text-foreground font-mono text-sm">{exc.caseId}</p>
-                    <p className="text-xs text-muted-foreground">{exc.description}</p>
-                  </div>
-                </div>
-                <span
-                  className={`status-badge ${
-                    exc.status === 'open'
-                      ? 'status-open'
-                      : exc.status === 'under_review'
-                      ? 'status-review'
-                      : 'status-resolved'
-                  }`}
-                >
-                  {exc.status.replace('_', ' ')}
-                </span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
