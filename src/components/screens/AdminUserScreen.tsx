@@ -213,45 +213,6 @@ export function AdminUserScreen() {
           </CardContent>
         </Card>
 
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <Settings2 className="h-4 w-4 text-warning" />
-              New Recon
-            </CardTitle>
-            <CardDescription className="text-xs">Setup reconciliation</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button className="w-full" variant="outline" size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Setup New
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="bg-card border-border">
-                <DialogHeader>
-                  <DialogTitle>Create New Reconciliation</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 pt-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="recon-name">Reconciliation Name</Label>
-                    <Input
-                      id="recon-name"
-                      placeholder="e.g., Q1 2024 Trade Recon"
-                      value={newReconName}
-                      onChange={(e) => setNewReconName(e.target.value)}
-                      className="bg-secondary border-border"
-                    />
-                  </div>
-                  <Button onClick={handleSetupNewRecon} className="w-full">
-                    Create Reconciliation
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Agent Analysis Panel */}

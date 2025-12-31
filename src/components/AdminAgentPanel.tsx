@@ -18,6 +18,14 @@ import {
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
 
 interface AdminAgentPanelProps {
   state: AgentState;
@@ -44,9 +52,9 @@ export function AdminAgentPanel({ state }: AdminAgentPanelProps) {
   };
 
   const steps = [
-    { id: 'data_quality', label: 'Data Quality', icon: CheckCircle },
+    { id: 'data_quality', label: 'Data Ingestion', icon: CheckCircle },
     { id: 'schema_analysis', label: 'Schema Mapping', icon: Database },
-    { id: 'reconciliation', label: 'Reconciliation', icon: GitCompare },
+    { id: 'reconciliation', label: 'Data Quality', icon: GitCompare },
     { id: 'generate_etl', label: 'ETL Script', icon: Code },
   ];
 
@@ -132,7 +140,7 @@ export function AdminAgentPanel({ state }: AdminAgentPanelProps) {
               </TabsTrigger>
               <TabsTrigger value="quality" disabled={!dataQuality}>
                 <CheckCircle className="h-3 w-3 mr-1" />
-                Data Quality
+                Data Ingestion
               </TabsTrigger>
               <TabsTrigger value="etl" disabled={!etlScript}>
                 <Code className="h-3 w-3 mr-1" />
@@ -492,6 +500,71 @@ export function AdminAgentPanel({ state }: AdminAgentPanelProps) {
               )}
             </TabsContent>
           </Tabs>
+        )}
+
+        {/* Schema Preview Section */}
+        {schemaAnalysis && (
+          <div className="grid grid-cols-2 gap-4 mt-6">
+            {/* Ledger Schema Preview */}
+            <div className="p-4 rounded-lg bg-secondary/50 border border-border">
+              <h4 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
+                <Database className="h-4 w-4 text-primary" />
+                Ledger Schema Preview
+              </h4>
+              <ScrollArea className="h-48">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-foreground text-xs">Column Name</TableHead>
+                      <TableHead className="text-foreground text-xs">Data Type</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {schemaAnalysis.ledgerSchema?.map((col, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="font-mono text-xs text-primary py-1">
+                          {col.columnName}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground py-1">
+                          {col.inferredType}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </div>
+
+            {/* Statement Schema Preview */}
+            <div className="p-4 rounded-lg bg-secondary/50 border border-border">
+              <h4 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
+                <Database className="h-4 w-4 text-info" />
+                Statement Schema Preview
+              </h4>
+              <ScrollArea className="h-48">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-foreground text-xs">Column Name</TableHead>
+                      <TableHead className="text-foreground text-xs">Data Type</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {schemaAnalysis.statementSchema?.map((col, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="font-mono text-xs text-info py-1">
+                          {col.columnName}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground py-1">
+                          {col.inferredType}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </div>
+          </div>
         )}
 
         {/* Idle State */}
