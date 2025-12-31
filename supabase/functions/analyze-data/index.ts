@@ -26,17 +26,7 @@ Exception Rules for Trade Reconciliation (codes 101-106):
 
 106 - Partial Settlement: Only portion of quantity settled. Match by Transaction_Ref + SWIFTRef + Quantity. Flag if Ledger.Settled_Quantity > Settlement.Settled_Quantity.
 
-OTHER - Any exception that doesn't fit codes 101-106. Examples of OTHER exceptions include:
-- Currency mismatch between ledger and settlement
-- Settled in wrong version or wrong system
-- Duplicate transaction entries
-- Data format inconsistencies
-- Counterparty name variations
-- Timing differences beyond acceptable thresholds
-- Manual adjustments not reflected
-Provide detailed description with other_subtype and other_description for each OTHER exception.
-
-IMPORTANT: You MUST identify and classify at least 2-3 records as OTHER exceptions to capture edge cases that don't fit standard codes 101-106.
+OTHER - Any exception that doesn't fit codes 101-106. Provide detailed description with other_subtype and other_description.
 `;
 
 serve(async (req) => {
@@ -280,13 +270,6 @@ Match records between ledger and statement using the exception rules. For each r
 2. Determine the exception code (101-106 or OTHER) based on the mismatch type
 3. Calculate a confidence score for matched records
 4. Generate the expected output with reason codes
-
-CRITICAL REQUIREMENT: You MUST classify at least 2-3 records as OTHER exceptions. Look for:
-- Currency mismatches
-- Counterparty name variations  
-- Data format inconsistencies
-- Timing differences
-- Any other edge cases not fitting codes 101-106
 
 Return the complete reconciliation result as JSON.`;
     }
