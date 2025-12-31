@@ -36,17 +36,20 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { ReconciliationResult, ExceptionCode, EXCEPTION_DEFINITIONS, ExceptionRecord } from '@/types/recon';
+import { ReconciliationResult, ExceptionCode, EXCEPTION_DEFINITIONS, ExceptionRecord, OtherException } from '@/types/recon';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 interface ReconciliationDashboardProps {
   result: ReconciliationResult;
 }
 
+type CaseStatus = 'OPEN' | 'UNDER REVIEW' | 'CLOSED';
+
 interface CaseState {
   caseId: string;
-  status: 'open' | 'under_review' | 'closed';
+  status: CaseStatus;
   assignedTo: string;
+  exceptionCode: ExceptionCode | '';
   comments: { author: string; content: string; createdAt: Date }[];
 }
 
@@ -54,12 +57,17 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
   const [exceptionCodeFilter, setExceptionCodeFilter] = useState<string>('all');
   const [reasonCodeFilter, setReasonCodeFilter] = useState<string>('all');
   const [selectedCase, setSelectedCase] = useState<ExceptionRecord | null>(null);
+  const [selectedOtherCase, setSelectedOtherCase] = useState<OtherException | null>(null);
+  const [selectedOtherIndex, setSelectedOtherIndex] = useState<number>(-1);
   const [caseDialogOpen, setCaseDialogOpen] = useState(false);
+  const [otherCaseDialogOpen, setOtherCaseDialogOpen] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [assignTo, setAssignTo] = useState('');
   
-  // Track case states
+  // Track case states for exception records
   const [caseStates, setCaseStates] = useState<Record<string, CaseState>>({});
+  // Track case states for OTHER exceptions
+  const [otherCaseStates, setOtherCaseStates] = useState<Record<string, CaseState>>({});
 
   const getExceptionDescription = (code: ExceptionCode): string => {
     const def = EXCEPTION_DEFINITIONS.find(d => d.code === code);
@@ -90,11 +98,26 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
     return `CASE-${record.exception_code}-${index + 1}`;
   };
 
+  const getOtherCaseId = (index: number) => {
+    return `CASE-OTHER-${index + 1}`;
+  };
+
   const getCaseState = (caseId: string): CaseState => {
     return caseStates[caseId] || {
       caseId,
-      status: 'open',
+      status: 'OPEN',
       assignedTo: '',
+      exceptionCode: '',
+      comments: []
+    };
+  };
+
+  const getOtherCaseState = (caseId: string): CaseState => {
+    return otherCaseStates[caseId] || {
+      caseId,
+      status: 'OPEN',
+      assignedTo: '',
+      exceptionCode: '',
       comments: []
     };
   };
@@ -105,6 +128,15 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
     const state = getCaseState(caseId);
     setAssignTo(state.assignedTo);
     setCaseDialogOpen(true);
+  };
+
+  const handleOtherCaseClick = (record: OtherException, index: number) => {
+    setSelectedOtherCase(record);
+    setSelectedOtherIndex(index);
+    const caseId = getOtherCaseId(index);
+    const state = getOtherCaseState(caseId);
+    setAssignTo(state.assignedTo);
+    setOtherCaseDialogOpen(true);
   };
 
   const handleAddComment = () => {
@@ -137,7 +169,7 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
       [caseId]: {
         ...currentState,
         assignedTo: assignTo,
-        status: 'under_review'
+        status: 'UNDER REVIEW'
       }
     }));
     
@@ -153,7 +185,7 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
       ...prev,
       [caseId]: {
         ...currentState,
-        status: 'closed'
+        status: 'CLOSED'
       }
     }));
     
@@ -161,12 +193,111 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
     toast.success('Case closed');
   };
 
-  // Calculate case counts
-  const openCases = Object.values(caseStates).filter(c => c.status === 'open').length;
-  const underReviewCases = Object.values(caseStates).filter(c => c.status === 'under_review').length;
-  const closedCases = Object.values(caseStates).filter(c => c.status === 'closed').length;
-  const totalCases = filteredRecords.length;
-  const newCases = totalCases - openCases - underReviewCases - closedCases;
+  const handleStatusChange = (newStatus: CaseStatus) => {
+    if (!selectedCase) return;
+    const caseId = getCaseId(selectedCase, filteredRecords.indexOf(selectedCase));
+    const currentState = getCaseState(caseId);
+    
+    setCaseStates(prev => ({
+      ...prev,
+      [caseId]: {
+        ...currentState,
+        status: newStatus
+      }
+    }));
+    
+    toast.success(`Status updated to ${newStatus}`);
+  };
+
+  // Other case handlers
+  const handleOtherAddComment = () => {
+    if (!selectedOtherCase || !newComment.trim()) return;
+    const caseId = getOtherCaseId(selectedOtherIndex);
+    const currentState = getOtherCaseState(caseId);
+    
+    setOtherCaseStates(prev => ({
+      ...prev,
+      [caseId]: {
+        ...currentState,
+        comments: [
+          ...currentState.comments,
+          { author: 'Current User', content: newComment, createdAt: new Date() }
+        ]
+      }
+    }));
+    
+    setNewComment('');
+    toast.success('Comment added');
+  };
+
+  const handleOtherAssign = () => {
+    if (!selectedOtherCase || !assignTo.trim()) return;
+    const caseId = getOtherCaseId(selectedOtherIndex);
+    const currentState = getOtherCaseState(caseId);
+    
+    setOtherCaseStates(prev => ({
+      ...prev,
+      [caseId]: {
+        ...currentState,
+        assignedTo: assignTo,
+        status: 'UNDER REVIEW'
+      }
+    }));
+    
+    toast.success(`Case assigned to ${assignTo}`);
+  };
+
+  const handleOtherCloseCase = () => {
+    if (!selectedOtherCase) return;
+    const caseId = getOtherCaseId(selectedOtherIndex);
+    const currentState = getOtherCaseState(caseId);
+    
+    setOtherCaseStates(prev => ({
+      ...prev,
+      [caseId]: {
+        ...currentState,
+        status: 'CLOSED'
+      }
+    }));
+    
+    setOtherCaseDialogOpen(false);
+    toast.success('Case closed');
+  };
+
+  const handleOtherStatusChange = (newStatus: CaseStatus) => {
+    if (!selectedOtherCase) return;
+    const caseId = getOtherCaseId(selectedOtherIndex);
+    const currentState = getOtherCaseState(caseId);
+    
+    setOtherCaseStates(prev => ({
+      ...prev,
+      [caseId]: {
+        ...currentState,
+        status: newStatus
+      }
+    }));
+    
+    toast.success(`Status updated to ${newStatus}`);
+  };
+
+  const handleOtherExceptionCodeChange = (code: ExceptionCode | '') => {
+    if (!selectedOtherCase) return;
+    const caseId = getOtherCaseId(selectedOtherIndex);
+    const currentState = getOtherCaseState(caseId);
+    
+    // Get the reason code for the selected exception code
+    const reasonCode = code ? getExceptionDescription(code) : 'OTHER';
+    
+    setOtherCaseStates(prev => ({
+      ...prev,
+      [caseId]: {
+        ...currentState,
+        exceptionCode: code
+      }
+    }));
+    
+    toast.success(`Exception code updated to ${code || 'None'}`);
+  };
 
   const clearFilters = () => {
     setExceptionCodeFilter('all');
@@ -275,13 +406,10 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
                   <TableHead className="text-foreground">Case ID</TableHead>
                   <TableHead className="text-foreground">Exception Code</TableHead>
                   <TableHead className="text-foreground">Reason Code</TableHead>
-                  <TableHead className="text-foreground">Match Status</TableHead>
                   <TableHead className="text-foreground">Transaction Ref</TableHead>
                   <TableHead className="text-foreground">Ledger SwiftRef</TableHead>
                   <TableHead className="text-foreground">Settlement SwiftRef</TableHead>
                   <TableHead className="text-foreground">ISIN</TableHead>
-                  <TableHead className="text-right text-foreground">Quantity</TableHead>
-                  <TableHead className="text-right text-foreground">Amount</TableHead>
                   <TableHead className="text-foreground">Value Date</TableHead>
                   <TableHead className="text-foreground">Assigned To</TableHead>
                 </TableRow>
@@ -302,21 +430,10 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
                       </TableCell>
                       <TableCell className="font-mono text-primary">{record.exception_code}</TableCell>
                       <TableCell className="text-foreground">{record.reason_code}</TableCell>
-                      <TableCell>
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          record.match_status === 'MATCHED' 
-                            ? 'bg-success/20 text-success' 
-                            : 'bg-destructive/20 text-destructive'
-                        }`}>
-                          {record.match_status}
-                        </span>
-                      </TableCell>
                       <TableCell className="font-mono text-foreground">{record.transaction_ref}</TableCell>
                       <TableCell className="font-mono text-info">{record.ledger_swiftref}</TableCell>
                       <TableCell className="font-mono text-info">{record.settlement_swiftref || 'None'}</TableCell>
                       <TableCell className="font-mono text-foreground">{record.isin}</TableCell>
-                      <TableCell className="text-right font-mono text-foreground">{record.quantity}</TableCell>
-                      <TableCell className="text-right font-mono text-foreground">{record.amount}</TableCell>
                       <TableCell className="text-foreground">{record.value_date}</TableCell>
                       <TableCell className="text-muted-foreground">
                         {caseState.assignedTo || '-'}
@@ -335,31 +452,54 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
           <div className="mt-4">
             <h4 className="text-lg font-medium text-foreground mb-2 flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-warning" />
-              OTHER Exceptions (Agent Explanation)
+              OTHER Exceptions
             </h4>
-            <ScrollArea className="h-40">
+            <ScrollArea className="h-48">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-foreground">Transaction Ref</TableHead>
-                    <TableHead className="text-foreground">Ledger Index</TableHead>
-                    <TableHead className="text-foreground">Settlement Index</TableHead>
-                    <TableHead className="text-foreground">Other Subtype</TableHead>
-                    <TableHead className="text-foreground">Other Description</TableHead>
+                    <TableHead className="text-foreground">Case ID</TableHead>
+                    <TableHead className="text-foreground">Exception Code</TableHead>
                     <TableHead className="text-foreground">Reason Code</TableHead>
+                    <TableHead className="text-foreground">Transaction Ref</TableHead>
+                    <TableHead className="text-foreground">Ledger SwiftRef</TableHead>
+                    <TableHead className="text-foreground">Settlement SwiftRef</TableHead>
+                    <TableHead className="text-foreground">ISIN</TableHead>
+                    <TableHead className="text-foreground">Value Date</TableHead>
+                    <TableHead className="text-foreground">Assigned To</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {result.exceptions.otherExceptions.map((ex, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="font-mono text-primary">{ex.transaction_ref}</TableCell>
-                      <TableCell className="font-mono text-foreground">{ex.ledger_index}</TableCell>
-                      <TableCell className="font-mono text-foreground">{ex.settlement_index ?? 'None'}</TableCell>
-                      <TableCell className="text-warning">{ex.other_subtype}</TableCell>
-                      <TableCell className="text-foreground text-sm max-w-md">{ex.other_description}</TableCell>
-                      <TableCell className="font-mono text-foreground">{ex.reason_code}</TableCell>
-                    </TableRow>
-                  ))}
+                  {result.exceptions.otherExceptions.map((ex, i) => {
+                    const caseId = getOtherCaseId(i);
+                    const caseState = getOtherCaseState(caseId);
+                    return (
+                      <TableRow key={i}>
+                        <TableCell>
+                          <button 
+                            onClick={() => handleOtherCaseClick(ex, i)}
+                            className="font-mono text-primary hover:underline cursor-pointer text-left"
+                          >
+                            {caseId}
+                          </button>
+                        </TableCell>
+                        <TableCell className="font-mono text-warning">
+                          {caseState.exceptionCode || '-'}
+                        </TableCell>
+                        <TableCell className="text-foreground">
+                          {caseState.exceptionCode ? getExceptionDescription(caseState.exceptionCode) : 'OTHER'}
+                        </TableCell>
+                        <TableCell className="font-mono text-primary">{ex.transaction_ref}</TableCell>
+                        <TableCell className="font-mono text-info">-</TableCell>
+                        <TableCell className="font-mono text-info">-</TableCell>
+                        <TableCell className="font-mono text-foreground">-</TableCell>
+                        <TableCell className="text-foreground">-</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {caseState.assignedTo || '-'}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </ScrollArea>
@@ -393,15 +533,19 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Status</p>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      getCaseState(getCaseId(selectedCase, filteredRecords.indexOf(selectedCase))).status === 'closed'
-                        ? 'bg-success/20 text-success'
-                        : getCaseState(getCaseId(selectedCase, filteredRecords.indexOf(selectedCase))).status === 'under_review'
-                        ? 'bg-warning/20 text-warning'
-                        : 'bg-destructive/20 text-destructive'
-                    }`}>
-                      {getCaseState(getCaseId(selectedCase, filteredRecords.indexOf(selectedCase))).status.replace('_', ' ').toUpperCase()}
-                    </span>
+                    <Select 
+                      value={getCaseState(getCaseId(selectedCase, filteredRecords.indexOf(selectedCase))).status}
+                      onValueChange={(val) => handleStatusChange(val as CaseStatus)}
+                    >
+                      <SelectTrigger className="w-32 h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="OPEN">OPEN</SelectItem>
+                        <SelectItem value="UNDER REVIEW">UNDER REVIEW</SelectItem>
+                        <SelectItem value="CLOSED">CLOSED</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">ISIN</p>
@@ -472,7 +616,151 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
                   <Button 
                     onClick={handleCloseCase}
                     className="bg-success hover:bg-success/90"
-                    disabled={getCaseState(getCaseId(selectedCase, filteredRecords.indexOf(selectedCase))).status === 'closed'}
+                    disabled={getCaseState(getCaseId(selectedCase, filteredRecords.indexOf(selectedCase))).status === 'CLOSED'}
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Close Case
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* OTHER Case Details Dialog */}
+        <Dialog open={otherCaseDialogOpen} onOpenChange={setOtherCaseDialogOpen}>
+          <DialogContent className="bg-card border-border max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                Case Details - {getOtherCaseId(selectedOtherIndex)}
+              </DialogTitle>
+            </DialogHeader>
+            
+            {selectedOtherCase && (
+              <div className="space-y-4">
+                {/* Case Info */}
+                <div className="grid grid-cols-2 gap-4 p-4 rounded-lg bg-secondary/50">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Exception Code</p>
+                    <Select 
+                      value={getOtherCaseState(getOtherCaseId(selectedOtherIndex)).exceptionCode || ''}
+                      onValueChange={(val) => handleOtherExceptionCodeChange(val as ExceptionCode | '')}
+                    >
+                      <SelectTrigger className="w-full h-8">
+                        <SelectValue placeholder="Select exception code..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">None</SelectItem>
+                        {EXCEPTION_DEFINITIONS.map(def => (
+                          <SelectItem key={def.code} value={def.code}>
+                            {def.code} - {def.category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Reason Code</p>
+                    <p className="text-foreground">
+                      {getOtherCaseState(getOtherCaseId(selectedOtherIndex)).exceptionCode 
+                        ? getExceptionDescription(getOtherCaseState(getOtherCaseId(selectedOtherIndex)).exceptionCode as ExceptionCode)
+                        : 'OTHER'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Transaction Ref</p>
+                    <p className="font-mono text-foreground">{selectedOtherCase.transaction_ref}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Status</p>
+                    <Select 
+                      value={getOtherCaseState(getOtherCaseId(selectedOtherIndex)).status}
+                      onValueChange={(val) => handleOtherStatusChange(val as CaseStatus)}
+                    >
+                      <SelectTrigger className="w-32 h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="OPEN">OPEN</SelectItem>
+                        <SelectItem value="UNDER REVIEW">UNDER REVIEW</SelectItem>
+                        <SelectItem value="CLOSED">CLOSED</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">ISIN</p>
+                    <p className="font-mono text-foreground">-</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Amount</p>
+                    <p className="font-mono text-foreground">-</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-xs text-muted-foreground">Other Description</p>
+                    <p className="text-foreground text-sm">{selectedOtherCase.other_description}</p>
+                  </div>
+                </div>
+
+                {/* Comments Section */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4" />
+                    Comments
+                  </Label>
+                  <ScrollArea className="h-24 border rounded-lg p-2">
+                    {getOtherCaseState(getOtherCaseId(selectedOtherIndex)).comments.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No comments yet</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {getOtherCaseState(getOtherCaseId(selectedOtherIndex)).comments.map((c, i) => (
+                          <div key={i} className="text-sm p-2 bg-secondary/50 rounded">
+                            <span className="font-medium text-foreground">{c.author}:</span>{' '}
+                            <span className="text-muted-foreground">{c.content}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </ScrollArea>
+                  <div className="flex gap-2">
+                    <Textarea 
+                      placeholder="Add a comment..."
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      className="h-16"
+                    />
+                    <Button onClick={handleOtherAddComment} size="sm" className="self-end">
+                      Add
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Assign Section */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <UserPlus className="h-4 w-4" />
+                    Assign To
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input 
+                      placeholder="Enter assignee name..."
+                      value={assignTo}
+                      onChange={(e) => setAssignTo(e.target.value)}
+                    />
+                    <Button onClick={handleOtherAssign} variant="outline" size="sm">
+                      Assign
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex justify-end gap-2 pt-4 border-t">
+                  <Button variant="outline" onClick={() => setOtherCaseDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleOtherCloseCase}
+                    className="bg-success hover:bg-success/90"
+                    disabled={getOtherCaseState(getOtherCaseId(selectedOtherIndex)).status === 'CLOSED'}
                   >
                     <CheckCircle className="h-4 w-4 mr-2" />
                     Close Case

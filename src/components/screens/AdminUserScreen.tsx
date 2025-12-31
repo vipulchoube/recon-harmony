@@ -1,33 +1,20 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useRecon } from '@/context/ReconContext';
 import { UploadedFile } from '@/types/recon';
-import { Upload, FileSpreadsheet, Settings2, CheckCircle, Loader2, Plus, Bot, Play } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle, Loader2, Bot, Play } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useDataAgent } from '@/hooks/useDataAgent';
 import { AdminAgentPanel } from '@/components/AdminAgentPanel';
 
 export function AdminUserScreen() {
-  const { uploadedFiles, addUploadedFile, updateFileProgress, setReconciliationResult } = useRecon();
+  const { uploadedFiles, addUploadedFile, updateFileProgress, setLedgerData, setStatementData, ledgerData, statementData } = useRecon();
   const [isUploading, setIsUploading] = useState<'ledger' | 'statement' | null>(null);
   const ledgerInputRef = useRef<HTMLInputElement>(null);
   const statementInputRef = useRef<HTMLInputElement>(null);
-  const [newReconName, setNewReconName] = useState('');
-  const [ledgerData, setLedgerData] = useState<string>('');
-  const [statementData, setStatementData] = useState<string>('');
-  const { state: agentState, runAnalysis, reset: resetAgent } = useDataAgent();
-
-  // Save reconciliation result to context when agent completes
-  useEffect(() => {
-    if (agentState.reconciliationResult) {
-      setReconciliationResult(agentState.reconciliationResult);
-    }
-  }, [agentState.reconciliationResult, setReconciliationResult]);
+  const { state: agentState, runSchemaSetup, reset: resetAgent } = useDataAgent();
 
   const handleFileUpload = async (type: 'ledger' | 'statement', file: File) => {
     if (!file.name.endsWith('.csv')) {
@@ -87,18 +74,7 @@ export function AdminUserScreen() {
       });
       return;
     }
-    runAnalysis(ledgerData, statementData);
-  };
-
-  const handleSetupNewRecon = () => {
-    if (!newReconName.trim()) {
-      toast.error('Please enter a reconciliation name');
-      return;
-    }
-    toast.success('New reconciliation created', {
-      description: `"${newReconName}" has been set up successfully`,
-    });
-    setNewReconName('');
+    runSchemaSetup(ledgerData, statementData);
   };
 
   const canRunAgent = ledgerData && statementData && !agentState.isAnalyzing;
@@ -107,13 +83,13 @@ export function AdminUserScreen() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-foreground">Admin Configuration</h2>
-        <p className="text-muted-foreground">Upload files and run AI-powered analysis</p>
+        <p className="text-muted-foreground">Upload files and run AI-powered schema setup</p>
       </div>
 
-      {/* Upload Section */}
-      <div className="grid gap-4 md:grid-cols-4">
+      {/* Upload Section - 3 cards that fit to window */}
+      <div className="grid gap-4 grid-cols-3">
         <Card className="glass-card">
-          <CardHeader>
+          <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm">
               <FileSpreadsheet className="h-4 w-4 text-primary" />
               Ledger Input
@@ -151,7 +127,7 @@ export function AdminUserScreen() {
         </Card>
 
         <Card className="glass-card">
-          <CardHeader>
+          <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm">
               <FileSpreadsheet className="h-4 w-4 text-info" />
               Statement Input
@@ -189,12 +165,12 @@ export function AdminUserScreen() {
         </Card>
 
         <Card className="glass-card">
-          <CardHeader>
+          <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm">
               <Bot className="h-4 w-4 text-primary" />
               Setup New Reconciliation Schema
             </CardTitle>
-            <CardDescription className="text-xs">Start AI analysis</CardDescription>
+            <CardDescription className="text-xs">Start AI schema analysis</CardDescription>
           </CardHeader>
           <CardContent>
             <Button
@@ -212,7 +188,6 @@ export function AdminUserScreen() {
             </Button>
           </CardContent>
         </Card>
-
       </div>
 
       {/* Agent Analysis Panel */}
