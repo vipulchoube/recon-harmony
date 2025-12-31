@@ -1,15 +1,31 @@
-import { BarChart3, CheckCircle2, XCircle, FileSpreadsheet, AlertTriangle } from 'lucide-react';
+import { useState } from 'react';
+import { BarChart3, CheckCircle2, XCircle, FileSpreadsheet, AlertTriangle, Play, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { useRecon } from '@/context/ReconContext';
 import { ReconciliationDashboard } from '@/components/ReconciliationDashboard';
+import { useReconciliation } from '@/hooks/useReconciliation';
 
 export function ReconUserScreen() {
-  const { reconciliationResult } = useRecon();
+  const { reconciliationResult, setReconciliationResult, ledgerData, statementData } = useRecon();
+  const { state: reconState, runReconciliation } = useReconciliation();
 
   const matchedCount = reconciliationResult?.matching?.matchedCount || 0;
   const unmatchedCount = reconciliationResult?.matching?.unmatchedCount || 0;
   const totalRecords = reconciliationResult?.matching?.totalRecords || 0;
   const totalExceptions = reconciliationResult?.exceptions?.records?.length || 0;
+
+  const handleStartReconciliation = async () => {
+    if (!ledgerData || !statementData) {
+      return;
+    }
+    await runReconciliation(ledgerData, statementData);
+  };
+
+  // Update context when reconciliation completes
+  if (reconState.reconciliationResult && reconState.reconciliationResult !== reconciliationResult) {
+    setReconciliationResult(reconState.reconciliationResult);
+  }
 
   const stats = [
     {
@@ -45,11 +61,27 @@ export function ReconUserScreen() {
     },
   ];
 
+  const canStartRecon = ledgerData && statementData && !reconState.isReconciling;
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-foreground">Reconciliation Dashboard</h2>
-        <p className="text-muted-foreground">Overview of trade reconciliation status</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-foreground">Reconciliation Dashboard</h2>
+          <p className="text-muted-foreground">Overview of trade reconciliation status</p>
+        </div>
+        <Button 
+          onClick={handleStartReconciliation}
+          disabled={!canStartRecon}
+          size="lg"
+        >
+          {reconState.isReconciling ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Play className="h-4 w-4 mr-2" />
+          )}
+          {reconState.isReconciling ? 'Reconciling...' : 'Start Reconciliation'}
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -98,7 +130,10 @@ export function ReconUserScreen() {
               <FileSpreadsheet className="h-16 w-16 mx-auto mb-4 opacity-50" />
               <h3 className="text-lg font-medium text-foreground mb-2">No Reconciliation Results</h3>
               <p className="text-sm">
-                Upload ledger and statement files in the Admin screen to run reconciliation analysis.
+                {!ledgerData || !statementData 
+                  ? 'Upload ledger and statement files in the Admin screen first, then click Start Reconciliation.'
+                  : 'Click Start Reconciliation to begin the reconciliation process.'
+                }
               </p>
             </div>
           </CardContent>

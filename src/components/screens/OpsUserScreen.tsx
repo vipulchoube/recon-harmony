@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CaseStatus } from '@/types/recon';
 import { useRecon } from '@/context/ReconContext';
-import { AlertCircle, Clock, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, Clock, CheckCircle2, Filter, X } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Table, 
@@ -17,7 +16,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
+import { EXCEPTION_DEFINITIONS, ExceptionCode } from '@/types/recon';
+
+type CaseStatus = 'OPEN' | 'UNDER REVIEW' | 'CLOSED';
 
 export function OpsUserScreen() {
   const { reconciliationResult } = useRecon();
@@ -26,17 +35,35 @@ export function OpsUserScreen() {
   const [caseStates, setCaseStates] = useState<Record<string, { status: CaseStatus; assignedTo: string; comments: any[] }>>({});
   const [newComment, setNewComment] = useState('');
   const [assignTo, setAssignTo] = useState('');
+  const [exceptionCodeFilter, setExceptionCodeFilter] = useState<string>('all');
+  const [reasonCodeFilter, setReasonCodeFilter] = useState<string>('all');
 
   const records = reconciliationResult?.exceptions?.records || [];
 
+  // Get unique values for filters
+  const uniqueExceptionCodes = [...new Set(records.map(r => r.exception_code))];
+  const uniqueReasonCodes = [...new Set(records.map(r => r.reason_code).filter(Boolean))];
+
+  // Filter records
+  const filteredRecords = records.filter(record => {
+    const matchesExceptionCode = exceptionCodeFilter === 'all' || record.exception_code === exceptionCodeFilter;
+    const matchesReasonCode = reasonCodeFilter === 'all' || record.reason_code === reasonCodeFilter;
+    return matchesExceptionCode && matchesReasonCode;
+  });
+
+  const getExceptionDescription = (code: ExceptionCode): string => {
+    const def = EXCEPTION_DEFINITIONS.find(d => d.code === code);
+    return def?.category || 'OTHER';
+  };
+
   const getCaseId = (index: number, code: string) => `CASE-${code}-${index + 1}`;
   
-  const getCaseState = (caseId: string) => caseStates[caseId] || { status: 'open' as CaseStatus, assignedTo: '', comments: [] };
+  const getCaseState = (caseId: string) => caseStates[caseId] || { status: 'OPEN' as CaseStatus, assignedTo: '', comments: [] };
 
-  const openCount = Object.values(caseStates).filter(c => c.status === 'open').length + 
+  const openCount = Object.values(caseStates).filter(c => c.status === 'OPEN').length + 
     (records.length - Object.keys(caseStates).length);
-  const reviewCount = Object.values(caseStates).filter(c => c.status === 'under_review').length;
-  const closedCount = Object.values(caseStates).filter(c => c.status === 'resolved').length;
+  const reviewCount = Object.values(caseStates).filter(c => c.status === 'UNDER REVIEW').length;
+  const closedCount = Object.values(caseStates).filter(c => c.status === 'CLOSED').length;
 
   const stats = [
     { title: 'Open Cases', value: openCount, icon: AlertCircle, variant: 'destructive' as const },
@@ -67,18 +94,33 @@ export function OpsUserScreen() {
     if (!selectedCase || !assignTo.trim()) return;
     const caseId = getCaseId(selectedCase.index, selectedCase.exception_code);
     const current = getCaseState(caseId);
-    setCaseStates(prev => ({ ...prev, [caseId]: { ...current, assignedTo: assignTo, status: 'under_review' } }));
+    setCaseStates(prev => ({ ...prev, [caseId]: { ...current, assignedTo: assignTo, status: 'UNDER REVIEW' } }));
     toast.success(`Case assigned to ${assignTo}`);
+  };
+
+  const handleStatusChange = (newStatus: CaseStatus) => {
+    if (!selectedCase) return;
+    const caseId = getCaseId(selectedCase.index, selectedCase.exception_code);
+    const current = getCaseState(caseId);
+    setCaseStates(prev => ({ ...prev, [caseId]: { ...current, status: newStatus } }));
+    toast.success(`Status updated to ${newStatus}`);
   };
 
   const handleCloseCase = () => {
     if (!selectedCase) return;
     const caseId = getCaseId(selectedCase.index, selectedCase.exception_code);
     const current = getCaseState(caseId);
-    setCaseStates(prev => ({ ...prev, [caseId]: { ...current, status: 'resolved' } }));
+    setCaseStates(prev => ({ ...prev, [caseId]: { ...current, status: 'CLOSED' } }));
     setCaseDialogOpen(false);
     toast.success('Case closed');
   };
+
+  const clearFilters = () => {
+    setExceptionCodeFilter('all');
+    setReasonCodeFilter('all');
+  };
+
+  const hasActiveFilters = exceptionCodeFilter !== 'all' || reasonCodeFilter !== 'all';
 
   return (
     <div className="space-y-6">
@@ -103,7 +145,40 @@ export function OpsUserScreen() {
 
       <Card className="glass-card">
         <CardHeader>
-          <CardTitle>All Cases</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>All Cases</CardTitle>
+            <div className="flex items-center gap-3">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <Select value={exceptionCodeFilter} onValueChange={setExceptionCodeFilter}>
+                <SelectTrigger className="w-36 h-8 text-xs">
+                  <SelectValue placeholder="Exception Code" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Codes</SelectItem>
+                  {uniqueExceptionCodes.map(code => (
+                    <SelectItem key={code} value={code}>{code} - {getExceptionDescription(code)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={reasonCodeFilter} onValueChange={setReasonCodeFilter}>
+                <SelectTrigger className="w-36 h-8 text-xs">
+                  <SelectValue placeholder="Reason Code" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Reasons</SelectItem>
+                  {uniqueReasonCodes.map(code => (
+                    <SelectItem key={code} value={code}>{code}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 px-2">
+                  <X className="h-4 w-4 mr-1" />
+                  Clear
+                </Button>
+              )}
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <ScrollArea className="h-96">
@@ -113,18 +188,17 @@ export function OpsUserScreen() {
                   <TableHead>Case ID</TableHead>
                   <TableHead>Exception Code</TableHead>
                   <TableHead>Reason Code</TableHead>
-                  <TableHead>Match Status</TableHead>
                   <TableHead>Transaction Ref</TableHead>
+                  <TableHead>Ledger SwiftRef</TableHead>
+                  <TableHead>Settlement SwiftRef</TableHead>
                   <TableHead>ISIN</TableHead>
-                  <TableHead className="text-right">Quantity</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Value Date</TableHead>
                   <TableHead>Assigned To</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {records.map((record, i) => {
+                {filteredRecords.map((record, i) => {
                   const caseId = getCaseId(i, record.exception_code);
                   const state = getCaseState(caseId);
                   return (
@@ -132,14 +206,13 @@ export function OpsUserScreen() {
                       <TableCell><button onClick={() => handleCaseClick(record, i)} className="font-mono text-primary hover:underline">{caseId}</button></TableCell>
                       <TableCell className="font-mono text-primary">{record.exception_code}</TableCell>
                       <TableCell>{record.reason_code}</TableCell>
-                      <TableCell><span className={`px-2 py-1 rounded text-xs ${record.match_status === 'MATCHED' ? 'bg-success/20 text-success' : 'bg-destructive/20 text-destructive'}`}>{record.match_status}</span></TableCell>
                       <TableCell className="font-mono">{record.transaction_ref}</TableCell>
+                      <TableCell className="font-mono text-info">{record.ledger_swiftref}</TableCell>
+                      <TableCell className="font-mono text-info">{record.settlement_swiftref || 'None'}</TableCell>
                       <TableCell className="font-mono">{record.isin}</TableCell>
-                      <TableCell className="text-right font-mono">{record.quantity}</TableCell>
-                      <TableCell className="text-right font-mono">{record.amount}</TableCell>
                       <TableCell>{record.value_date}</TableCell>
                       <TableCell>{state.assignedTo || '-'}</TableCell>
-                      <TableCell><span className={`px-2 py-1 rounded text-xs ${state.status === 'resolved' ? 'bg-success/20 text-success' : state.status === 'under_review' ? 'bg-warning/20 text-warning' : 'bg-destructive/20 text-destructive'}`}>{state.status.replace('_', ' ')}</span></TableCell>
+                      <TableCell><span className={`px-2 py-1 rounded text-xs ${state.status === 'CLOSED' ? 'bg-success/20 text-success' : state.status === 'UNDER REVIEW' ? 'bg-warning/20 text-warning' : 'bg-destructive/20 text-destructive'}`}>{state.status}</span></TableCell>
                     </TableRow>
                   );
                 })}
@@ -158,7 +231,19 @@ export function OpsUserScreen() {
                 <div><p className="text-xs text-muted-foreground">Exception Code</p><p className="font-mono text-primary">{selectedCase.exception_code}</p></div>
                 <div><p className="text-xs text-muted-foreground">Reason Code</p><p>{selectedCase.reason_code}</p></div>
                 <div><p className="text-xs text-muted-foreground">Transaction Ref</p><p className="font-mono">{selectedCase.transaction_ref}</p></div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Status</p>
+                  <Select value={getCaseState(getCaseId(selectedCase.index, selectedCase.exception_code)).status} onValueChange={(val) => handleStatusChange(val as CaseStatus)}>
+                    <SelectTrigger className="w-32 h-8"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="OPEN">OPEN</SelectItem>
+                      <SelectItem value="UNDER REVIEW">UNDER REVIEW</SelectItem>
+                      <SelectItem value="CLOSED">CLOSED</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div><p className="text-xs text-muted-foreground">Amount</p><p className="font-mono">{selectedCase.amount}</p></div>
+                <div><p className="text-xs text-muted-foreground">ISIN</p><p className="font-mono">{selectedCase.isin}</p></div>
               </div>
               <div className="space-y-2">
                 <Label>Comments</Label>
@@ -173,7 +258,7 @@ export function OpsUserScreen() {
               </div>
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <Button variant="outline" onClick={() => setCaseDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleCloseCase} className="bg-success hover:bg-success/90" disabled={getCaseState(getCaseId(selectedCase.index, selectedCase.exception_code)).status === 'resolved'}><CheckCircle2 className="h-4 w-4 mr-2" />Close Case</Button>
+                <Button onClick={handleCloseCase} className="bg-success hover:bg-success/90" disabled={getCaseState(getCaseId(selectedCase.index, selectedCase.exception_code)).status === 'CLOSED'}><CheckCircle2 className="h-4 w-4 mr-2" />Close Case</Button>
               </div>
             </div>
           )}

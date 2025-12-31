@@ -7,11 +7,15 @@ interface ReconContextType {
   uploadedFiles: UploadedFile[];
   reconciliations: Reconciliation[];
   reconciliationResult: ReconciliationResult | null;
+  ledgerData: string;
+  statementData: string;
   updateExceptionStatus: (id: string, status: CaseStatus) => void;
   addComment: (exceptionId: string, comment: Omit<Comment, 'id' | 'createdAt'>) => void;
   addUploadedFile: (file: UploadedFile) => void;
   updateFileProgress: (id: string, progress: number, status?: UploadedFile['status']) => void;
   setReconciliationResult: (result: ReconciliationResult | null) => void;
+  setLedgerData: (data: string) => void;
+  setStatementData: (data: string) => void;
 }
 
 const ReconContext = createContext<ReconContextType | undefined>(undefined);
@@ -21,6 +25,8 @@ export function ReconProvider({ children }: { children: ReactNode }) {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>(mockUploadedFiles);
   const [reconciliations, setReconciliations] = useState<Reconciliation[]>(mockReconciliations);
   const [reconciliationResult, setReconciliationResult] = useState<ReconciliationResult | null>(null);
+  const [ledgerData, setLedgerData] = useState<string>('');
+  const [statementData, setStatementData] = useState<string>('');
 
   const updateExceptionStatus = (id: string, status: CaseStatus) => {
     setExceptions((prev) =>
@@ -81,11 +87,15 @@ export function ReconProvider({ children }: { children: ReactNode }) {
         uploadedFiles,
         reconciliations,
         reconciliationResult,
+        ledgerData,
+        statementData,
         updateExceptionStatus,
         addComment,
         addUploadedFile,
         updateFileProgress,
         setReconciliationResult,
+        setLedgerData,
+        setStatementData,
       }}
     >
       {children}

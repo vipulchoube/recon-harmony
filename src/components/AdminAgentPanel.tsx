@@ -13,7 +13,7 @@ import {
   Download,
   Bot,
   FileInput,
-  GitCompare
+  ShieldCheck
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -52,14 +52,14 @@ export function AdminAgentPanel({ state }: AdminAgentPanelProps) {
   };
 
   const steps = [
-    { id: 'data_quality', label: 'Data Ingestion', icon: CheckCircle },
+    { id: 'data_quality', label: 'Data Ingestion', icon: FileInput },
     { id: 'schema_analysis', label: 'Schema Mapping', icon: Database },
-    { id: 'reconciliation', label: 'Data Quality', icon: GitCompare },
+    { id: 'data_quality_check', label: 'Data Quality', icon: ShieldCheck },
     { id: 'generate_etl', label: 'ETL Script', icon: Code },
   ];
 
   const getStepStatus = (stepId: string) => {
-    const stepOrder = ['data_quality', 'schema_analysis', 'reconciliation', 'generate_etl', 'complete'];
+    const stepOrder = ['data_quality', 'schema_analysis', 'data_quality_check', 'generate_etl', 'complete'];
     const currentIndex = stepOrder.indexOf(currentStep);
     const stepIndex = stepOrder.indexOf(stepId);
     
@@ -78,7 +78,7 @@ export function AdminAgentPanel({ state }: AdminAgentPanelProps) {
           AI Agent Analysis
         </CardTitle>
         <CardDescription>
-          Data ingestion, schema mapping, quality checks, and Oracle ETL generation
+          Data ingestion, schema mapping, data quality checks, and Oracle ETL generation
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -139,8 +139,8 @@ export function AdminAgentPanel({ state }: AdminAgentPanelProps) {
                 Schema Mapping
               </TabsTrigger>
               <TabsTrigger value="quality" disabled={!dataQuality}>
-                <CheckCircle className="h-3 w-3 mr-1" />
-                Data Ingestion
+                <ShieldCheck className="h-3 w-3 mr-1" />
+                Data Quality
               </TabsTrigger>
               <TabsTrigger value="etl" disabled={!etlScript}>
                 <Code className="h-3 w-3 mr-1" />
