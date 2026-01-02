@@ -661,14 +661,14 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
                   <div>
                     <p className="text-xs text-muted-foreground">Exception Code</p>
                     <Select 
-                      value={getOtherCaseState(getOtherCaseId(selectedOtherIndex)).exceptionCode || ''}
-                      onValueChange={(val) => handleOtherExceptionCodeChange(val as ExceptionCode | '')}
+                      value={getOtherCaseState(getOtherCaseId(selectedOtherIndex)).exceptionCode || 'none'}
+                      onValueChange={(val) => handleOtherExceptionCodeChange(val === 'none' ? '' : val as ExceptionCode | '')}
                     >
                       <SelectTrigger className="w-full h-8">
                         <SelectValue placeholder="Select exception code..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {EXCEPTION_DEFINITIONS.map(def => (
                           <SelectItem key={def.code} value={def.code}>
                             {def.code} - {def.category}
