@@ -39,9 +39,17 @@ export function AdminAgentPanel({ state }: AdminAgentPanelProps) {
     toast.success('Copied to clipboard');
   };
 
+  // Get the ETL script content, falling back to rawResponse if script is undefined
+  const getEtlContent = () => {
+    if (etlScript?.script) return etlScript.script;
+    if (etlScript?.rawResponse) return etlScript.rawResponse;
+    return '';
+  };
+
   const downloadScript = () => {
-    if (!etlScript?.script) return;
-    const blob = new Blob([etlScript.script], { type: 'text/plain' });
+    const content = getEtlContent();
+    if (!content) return;
+    const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -435,7 +443,8 @@ export function AdminAgentPanel({ state }: AdminAgentPanelProps) {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => copyToClipboard(etlScript.script)}
+                        onClick={() => copyToClipboard(getEtlContent())}
+                        disabled={!getEtlContent()}
                       >
                         <Copy className="h-3 w-3 mr-1" />
                         Copy
@@ -480,9 +489,15 @@ export function AdminAgentPanel({ state }: AdminAgentPanelProps) {
 
                   <ScrollArea className="h-64 rounded border border-border bg-background">
                     <pre className="p-4 text-xs font-mono text-foreground whitespace-pre-wrap">
-                      {etlScript.script}
+                      {getEtlContent() || 'No script content available'}
                     </pre>
                   </ScrollArea>
+
+                  {etlScript.rawResponse && !etlScript.script && (
+                    <div className="p-2 rounded bg-warning/10 border border-warning/30 text-xs text-warning">
+                      ⚠️ Script was too long for structured parsing. Displaying raw content.
+                    </div>
+                  )}
 
                   {etlScript.executionOrder?.length > 0 && (
                     <div className="p-3 rounded bg-info/10 border border-info/30">
