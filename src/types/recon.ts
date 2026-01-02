@@ -269,6 +269,10 @@ export interface OtherException {
   other_subtype: string;
   other_description: string;
   reason_code: string;
+  ledger_swiftref?: string;
+  settlement_swiftref?: string;
+  isin?: string;
+  value_date?: string;
 }
 
 export interface ExpectedOutputRow {

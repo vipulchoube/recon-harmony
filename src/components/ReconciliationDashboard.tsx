@@ -412,6 +412,7 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
                   <TableHead className="text-foreground">ISIN</TableHead>
                   <TableHead className="text-foreground">Value Date</TableHead>
                   <TableHead className="text-foreground">Assigned To</TableHead>
+                  <TableHead className="text-foreground">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -438,6 +439,15 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
                       <TableCell className="text-muted-foreground">
                         {caseState.assignedTo || '-'}
                       </TableCell>
+                      <TableCell>
+                        <span className={`text-xs font-medium px-2 py-1 rounded ${
+                          caseState.status === 'CLOSED' ? 'bg-success/20 text-success' :
+                          caseState.status === 'UNDER REVIEW' ? 'bg-warning/20 text-warning' :
+                          'bg-destructive/20 text-destructive'
+                        }`}>
+                          {caseState.status}
+                        </span>
+                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -461,12 +471,14 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
                     <TableHead className="text-foreground">Case ID</TableHead>
                     <TableHead className="text-foreground">Exception Code</TableHead>
                     <TableHead className="text-foreground">Reason Code</TableHead>
+                    <TableHead className="text-foreground">Exception Description (AI-generated)</TableHead>
                     <TableHead className="text-foreground">Transaction Ref</TableHead>
                     <TableHead className="text-foreground">Ledger SwiftRef</TableHead>
                     <TableHead className="text-foreground">Settlement SwiftRef</TableHead>
                     <TableHead className="text-foreground">ISIN</TableHead>
                     <TableHead className="text-foreground">Value Date</TableHead>
                     <TableHead className="text-foreground">Assigned To</TableHead>
+                    <TableHead className="text-foreground">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -489,13 +501,25 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
                         <TableCell className="text-foreground">
                           {caseState.exceptionCode ? getExceptionDescription(caseState.exceptionCode) : 'OTHER'}
                         </TableCell>
+                        <TableCell className="text-foreground text-sm max-w-xs truncate" title={ex.other_description}>
+                          {ex.other_description || '-'}
+                        </TableCell>
                         <TableCell className="font-mono text-primary">{ex.transaction_ref}</TableCell>
-                        <TableCell className="font-mono text-info">-</TableCell>
-                        <TableCell className="font-mono text-info">-</TableCell>
-                        <TableCell className="font-mono text-foreground">-</TableCell>
-                        <TableCell className="text-foreground">-</TableCell>
+                        <TableCell className="font-mono text-info">{ex.ledger_swiftref || '-'}</TableCell>
+                        <TableCell className="font-mono text-info">{ex.settlement_swiftref || '-'}</TableCell>
+                        <TableCell className="font-mono text-foreground">{ex.isin || '-'}</TableCell>
+                        <TableCell className="text-foreground">{ex.value_date || '-'}</TableCell>
                         <TableCell className="text-muted-foreground">
                           {caseState.assignedTo || '-'}
+                        </TableCell>
+                        <TableCell>
+                          <span className={`text-xs font-medium px-2 py-1 rounded ${
+                            caseState.status === 'CLOSED' ? 'bg-success/20 text-success' :
+                            caseState.status === 'UNDER REVIEW' ? 'bg-warning/20 text-warning' :
+                            'bg-destructive/20 text-destructive'
+                          }`}>
+                            {caseState.status}
+                          </span>
                         </TableCell>
                       </TableRow>
                     );
@@ -532,20 +556,28 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
                     <p className="font-mono text-foreground">{selectedCase.transaction_ref}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Status</p>
-                    <Select 
-                      value={getCaseState(getCaseId(selectedCase, filteredRecords.indexOf(selectedCase))).status}
-                      onValueChange={(val) => handleStatusChange(val as CaseStatus)}
-                    >
-                      <SelectTrigger className="w-32 h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="OPEN">OPEN</SelectItem>
-                        <SelectItem value="UNDER REVIEW">UNDER REVIEW</SelectItem>
-                        <SelectItem value="CLOSED">CLOSED</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <p className="text-xs text-muted-foreground mb-1">Status</p>
+                    <div className="flex gap-1">
+                      {(['OPEN', 'UNDER REVIEW', 'CLOSED'] as CaseStatus[]).map((status) => {
+                        const currentStatus = getCaseState(getCaseId(selectedCase, filteredRecords.indexOf(selectedCase))).status;
+                        const isActive = currentStatus === status;
+                        return (
+                          <Button
+                            key={status}
+                            size="sm"
+                            variant={isActive ? 'default' : 'outline'}
+                            className={`text-xs h-7 px-2 ${
+                              isActive && status === 'CLOSED' ? 'bg-success hover:bg-success/90' :
+                              isActive && status === 'UNDER REVIEW' ? 'bg-warning hover:bg-warning/90 text-warning-foreground' :
+                              isActive && status === 'OPEN' ? 'bg-destructive hover:bg-destructive/90' : ''
+                            }`}
+                            onClick={() => handleStatusChange(status)}
+                          >
+                            {status}
+                          </Button>
+                        );
+                      })}
+                    </div>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">ISIN</p>
@@ -672,20 +704,28 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
                     <p className="font-mono text-foreground">{selectedOtherCase.transaction_ref}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Status</p>
-                    <Select 
-                      value={getOtherCaseState(getOtherCaseId(selectedOtherIndex)).status}
-                      onValueChange={(val) => handleOtherStatusChange(val as CaseStatus)}
-                    >
-                      <SelectTrigger className="w-32 h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="OPEN">OPEN</SelectItem>
-                        <SelectItem value="UNDER REVIEW">UNDER REVIEW</SelectItem>
-                        <SelectItem value="CLOSED">CLOSED</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <p className="text-xs text-muted-foreground mb-1">Status</p>
+                    <div className="flex gap-1">
+                      {(['OPEN', 'UNDER REVIEW', 'CLOSED'] as CaseStatus[]).map((status) => {
+                        const currentStatus = getOtherCaseState(getOtherCaseId(selectedOtherIndex)).status;
+                        const isActive = currentStatus === status;
+                        return (
+                          <Button
+                            key={status}
+                            size="sm"
+                            variant={isActive ? 'default' : 'outline'}
+                            className={`text-xs h-7 px-2 ${
+                              isActive && status === 'CLOSED' ? 'bg-success hover:bg-success/90' :
+                              isActive && status === 'UNDER REVIEW' ? 'bg-warning hover:bg-warning/90 text-warning-foreground' :
+                              isActive && status === 'OPEN' ? 'bg-destructive hover:bg-destructive/90' : ''
+                            }`}
+                            onClick={() => handleOtherStatusChange(status)}
+                          >
+                            {status}
+                          </Button>
+                        );
+                      })}
+                    </div>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">ISIN</p>
