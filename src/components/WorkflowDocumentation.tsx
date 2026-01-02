@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Download, FileText, Image, Loader2 } from 'lucide-react';
 import html2canvas from 'html2canvas';
+import { EXCEPTION_DEFINITIONS } from '@/types/recon';
 
 interface WorkflowDiagramProps {
   title: string;
@@ -176,36 +177,69 @@ export function WorkflowDocumentation() {
                   </DiagramBox>
                   <Arrow />
                   <div className="text-center text-sm text-muted-foreground mb-2">
-                    Detects Mismatch Type
+                    Detects Exception Type (Reason Codes 101-106 & OTHER)
                   </div>
                   
-                  <div className="grid grid-cols-5 gap-2">
-                    <DiagramBox className="bg-amber-500/20 border border-amber-500 text-xs">
-                      MISSING_IN_LEDGER
-                    </DiagramBox>
-                    <DiagramBox className="bg-orange-500/20 border border-orange-500 text-xs">
-                      MISSING_IN_STATEMENT
-                    </DiagramBox>
-                    <DiagramBox className="bg-red-500/20 border border-red-500 text-xs">
-                      AMOUNT_MISMATCH
-                    </DiagramBox>
-                    <DiagramBox className="bg-purple-500/20 border border-purple-500 text-xs">
-                      DATE_MISMATCH
-                    </DiagramBox>
-                    <DiagramBox className="bg-blue-500/20 border border-blue-500 text-xs">
-                      OTHER
+                  {/* Exception Code Boxes */}
+                  <div className="grid grid-cols-4 gap-2">
+                    {EXCEPTION_DEFINITIONS.map((def, idx) => (
+                      <DiagramBox 
+                        key={def.code}
+                        className={`text-xs ${
+                          idx === 0 ? 'bg-amber-500/20 border border-amber-500' :
+                          idx === 1 ? 'bg-orange-500/20 border border-orange-500' :
+                          idx === 2 ? 'bg-red-500/20 border border-red-500' :
+                          idx === 3 ? 'bg-purple-500/20 border border-purple-500' :
+                          idx === 4 ? 'bg-cyan-500/20 border border-cyan-500' :
+                          'bg-blue-500/20 border border-blue-500'
+                        }`}
+                      >
+                        {def.code}: {def.category}
+                      </DiagramBox>
+                    ))}
+                    <DiagramBox className="bg-slate-500/20 border border-slate-500 text-xs">
+                      OTHER: Unclassified
                     </DiagramBox>
                   </div>
 
-                  <div className="mt-6 p-4 bg-muted/50 rounded-lg">
-                    <h4 className="font-medium mb-2">Exception Code Descriptions:</h4>
-                    <ul className="text-sm space-y-1 text-muted-foreground">
-                      <li>• <strong>MISSING_IN_LEDGER</strong>: Transaction in statement but not in internal records</li>
-                      <li>• <strong>MISSING_IN_STATEMENT</strong>: Transaction in ledger but not in bank statement</li>
-                      <li>• <strong>AMOUNT_MISMATCH</strong>: Same transaction, different amounts</li>
-                      <li>• <strong>DATE_MISMATCH</strong>: Same transaction, different dates</li>
-                      <li>• <strong>OTHER</strong>: Unclassified - AI agent provides description</li>
-                    </ul>
+                  {/* Detailed Exception Table */}
+                  <div className="mt-6 overflow-x-auto">
+                    <table className="w-full text-sm border-collapse">
+                      <thead>
+                        <tr className="bg-muted/70">
+                          <th className="border border-border px-3 py-2 text-left font-semibold">Code</th>
+                          <th className="border border-border px-3 py-2 text-left font-semibold">Category</th>
+                          <th className="border border-border px-3 py-2 text-left font-semibold">Description</th>
+                          <th className="border border-border px-3 py-2 text-left font-semibold">Auto-Matching Criteria</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {EXCEPTION_DEFINITIONS.map((def) => (
+                          <tr key={def.code} className="hover:bg-muted/30">
+                            <td className="border border-border px-3 py-2 font-mono font-bold text-primary">{def.code}</td>
+                            <td className="border border-border px-3 py-2 font-medium">{def.category}</td>
+                            <td className="border border-border px-3 py-2 text-muted-foreground text-xs">{def.description}</td>
+                            <td className="border border-border px-3 py-2 font-mono text-xs text-muted-foreground">{def.autoMatchingCriteria}</td>
+                          </tr>
+                        ))}
+                        <tr className="hover:bg-muted/30">
+                          <td className="border border-border px-3 py-2 font-mono font-bold text-primary">OTHER</td>
+                          <td className="border border-border px-3 py-2 font-medium">Unclassified</td>
+                          <td className="border border-border px-3 py-2 text-muted-foreground text-xs">
+                            Exceptions that don't match codes 101-106. AI Agent analyzes and provides subtype + description for user review.
+                          </td>
+                          <td className="border border-border px-3 py-2 font-mono text-xs text-muted-foreground">
+                            No auto-match - AI Agent analysis required
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="mt-4 p-3 bg-muted/50 rounded-lg text-xs text-muted-foreground">
+                    <strong>Note:</strong> When an exception cannot be classified into codes 101-106, it is marked as OTHER. 
+                    The AI Agent then analyzes the mismatch and generates an <code className="bg-background px-1 rounded">other_subtype</code> and 
+                    <code className="bg-background px-1 rounded">other_description</code> for user review and potential reclassification.
                   </div>
                 </div>
               </WorkflowDiagram>
