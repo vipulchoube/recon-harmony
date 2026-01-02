@@ -1,5 +1,6 @@
 import { UserRole } from '@/types/recon';
 import { RoleSelector } from './RoleSelector';
+import { WorkflowDocumentation } from './WorkflowDocumentation';
 import { Activity } from 'lucide-react';
 
 interface HeaderProps {
@@ -22,7 +23,10 @@ export function Header({ activeRole, onRoleChange }: HeaderProps) {
             </div>
           </div>
 
-          <RoleSelector activeRole={activeRole} onRoleChange={onRoleChange} />
+          <div className="flex items-center gap-3">
+            <WorkflowDocumentation />
+            <RoleSelector activeRole={activeRole} onRoleChange={onRoleChange} />
+          </div>
         </div>
       </div>
     </header>
