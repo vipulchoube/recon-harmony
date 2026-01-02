@@ -556,28 +556,14 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
                     <p className="font-mono text-foreground">{selectedCase.transaction_ref}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground mb-1">Status</p>
-                    <div className="flex gap-1">
-                      {(['OPEN', 'UNDER REVIEW', 'CLOSED'] as CaseStatus[]).map((status) => {
-                        const currentStatus = getCaseState(getCaseId(selectedCase, filteredRecords.indexOf(selectedCase))).status;
-                        const isActive = currentStatus === status;
-                        return (
-                          <Button
-                            key={status}
-                            size="sm"
-                            variant={isActive ? 'default' : 'outline'}
-                            className={`text-xs h-7 px-2 ${
-                              isActive && status === 'CLOSED' ? 'bg-success hover:bg-success/90' :
-                              isActive && status === 'UNDER REVIEW' ? 'bg-warning hover:bg-warning/90 text-warning-foreground' :
-                              isActive && status === 'OPEN' ? 'bg-destructive hover:bg-destructive/90' : ''
-                            }`}
-                            onClick={() => handleStatusChange(status)}
-                          >
-                            {status}
-                          </Button>
-                        );
-                      })}
-                    </div>
+                    <p className="text-xs text-muted-foreground">Status</p>
+                    <span className={`text-xs font-medium px-2 py-1 rounded inline-block ${
+                      getCaseState(getCaseId(selectedCase, filteredRecords.indexOf(selectedCase))).status === 'CLOSED' ? 'bg-success/20 text-success' :
+                      getCaseState(getCaseId(selectedCase, filteredRecords.indexOf(selectedCase))).status === 'UNDER REVIEW' ? 'bg-warning/20 text-warning' :
+                      'bg-destructive/20 text-destructive'
+                    }`}>
+                      {getCaseState(getCaseId(selectedCase, filteredRecords.indexOf(selectedCase))).status}
+                    </span>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">ISIN</p>
@@ -704,28 +690,14 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
                     <p className="font-mono text-foreground">{selectedOtherCase.transaction_ref}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground mb-1">Status</p>
-                    <div className="flex gap-1">
-                      {(['OPEN', 'UNDER REVIEW', 'CLOSED'] as CaseStatus[]).map((status) => {
-                        const currentStatus = getOtherCaseState(getOtherCaseId(selectedOtherIndex)).status;
-                        const isActive = currentStatus === status;
-                        return (
-                          <Button
-                            key={status}
-                            size="sm"
-                            variant={isActive ? 'default' : 'outline'}
-                            className={`text-xs h-7 px-2 ${
-                              isActive && status === 'CLOSED' ? 'bg-success hover:bg-success/90' :
-                              isActive && status === 'UNDER REVIEW' ? 'bg-warning hover:bg-warning/90 text-warning-foreground' :
-                              isActive && status === 'OPEN' ? 'bg-destructive hover:bg-destructive/90' : ''
-                            }`}
-                            onClick={() => handleOtherStatusChange(status)}
-                          >
-                            {status}
-                          </Button>
-                        );
-                      })}
-                    </div>
+                    <p className="text-xs text-muted-foreground">Status</p>
+                    <span className={`text-xs font-medium px-2 py-1 rounded inline-block ${
+                      getOtherCaseState(getOtherCaseId(selectedOtherIndex)).status === 'CLOSED' ? 'bg-success/20 text-success' :
+                      getOtherCaseState(getOtherCaseId(selectedOtherIndex)).status === 'UNDER REVIEW' ? 'bg-warning/20 text-warning' :
+                      'bg-destructive/20 text-destructive'
+                    }`}>
+                      {getOtherCaseState(getOtherCaseId(selectedOtherIndex)).status}
+                    </span>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">ISIN</p>
