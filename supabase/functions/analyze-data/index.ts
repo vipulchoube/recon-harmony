@@ -260,7 +260,7 @@ IMPORTANT:
 - For any exception not fitting 101-106, classify as OTHER with detailed explanation
 - Calculate confidence scores based on how many matching criteria are met
 - Generate expectedOutput for all records that have exceptions
-- If a record has a mismatch that does not clearly fit exception codes 101-106, you MUST classify it as OTHER and provide a detailed explanation in other_description.';
+- If a record has a mismatch that does not clearly fit exception codes 101-106, you MUST classify it as OTHER and provide a detailed explanation in other_description.`;
       userPrompt = `Perform trade reconciliation on these CSV files:
 
 LEDGER DATA:
