@@ -233,14 +233,13 @@ export function OpsUserScreen() {
                 <div><p className="text-xs text-muted-foreground">Transaction Ref</p><p className="font-mono">{selectedCase.transaction_ref}</p></div>
                 <div>
                   <p className="text-xs text-muted-foreground">Status</p>
-                  <Select value={getCaseState(getCaseId(selectedCase.index, selectedCase.exception_code)).status} onValueChange={(val) => handleStatusChange(val as CaseStatus)}>
-                    <SelectTrigger className="w-32 h-8"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="OPEN">OPEN</SelectItem>
-                      <SelectItem value="UNDER REVIEW">UNDER REVIEW</SelectItem>
-                      <SelectItem value="CLOSED">CLOSED</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <span className={`text-xs font-medium px-2 py-1 rounded inline-block ${
+                    getCaseState(getCaseId(selectedCase.index, selectedCase.exception_code)).status === 'CLOSED' ? 'bg-success/20 text-success' :
+                    getCaseState(getCaseId(selectedCase.index, selectedCase.exception_code)).status === 'UNDER REVIEW' ? 'bg-warning/20 text-warning' :
+                    'bg-destructive/20 text-destructive'
+                  }`}>
+                    {getCaseState(getCaseId(selectedCase.index, selectedCase.exception_code)).status}
+                  </span>
                 </div>
                 <div><p className="text-xs text-muted-foreground">Amount</p><p className="font-mono">{selectedCase.amount}</p></div>
                 <div><p className="text-xs text-muted-foreground">ISIN</p><p className="font-mono">{selectedCase.isin}</p></div>
