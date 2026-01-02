@@ -222,16 +222,20 @@ You MUST respond with a JSON object with this EXACT structure:
         "value_date": "string"
       }
     ],
-    "otherExceptions": [
-      {
-        "transaction_ref": "string",
-        "ledger_index": number,
-        "settlement_index": number or null,
-        "other_subtype": "string (e.g., 'Settled in Wrong Version')",
-        "other_description": "string (detailed explanation)",
-        "reason_code": "OTHER"
-      }
-    ]
+"otherExceptions": [
+  {
+    "transaction_ref": "string",
+    "ledger_index": number,
+    "settlement_index": number or null,
+    "other_subtype": "string",
+    "other_description": "string (detailed AI-generated explanation)",
+    "reason_code": "OTHER",
+    "ledger_swiftref": "string",
+    "settlement_swiftref": "string or null",
+    "isin": "string",
+    "value_date": "string"
+  }
+]
   },
   "expectedOutput": [
     {
@@ -255,8 +259,8 @@ IMPORTANT:
 - Apply matching rules based on exception codes 101-106
 - For any exception not fitting 101-106, classify as OTHER with detailed explanation
 - Calculate confidence scores based on how many matching criteria are met
-- Generate expectedOutput for all records that have exceptions`;
-
+- Generate expectedOutput for all records that have exceptions
+- If a record has a mismatch that does not clearly fit exception codes 101-106, you MUST classify it as OTHER and provide a detailed explanation in other_description.';
       userPrompt = `Perform trade reconciliation on these CSV files:
 
 LEDGER DATA:
