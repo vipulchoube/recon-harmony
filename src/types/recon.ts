@@ -133,10 +133,11 @@ export interface SchemaCorrection {
 }
 
 export interface ETLScriptResult {
-  script: string;
-  tables: ETLTable[];
-  procedures: ETLProcedure[];
-  executionOrder: string[];
+  script?: string;
+  tables?: ETLTable[];
+  procedures?: ETLProcedure[];
+  executionOrder?: string[];
+  rawResponse?: string; // Fallback for unparsed content
 }
 
 export interface ETLTable {

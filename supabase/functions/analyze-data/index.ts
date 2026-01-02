@@ -131,36 +131,21 @@ ${statementData}
 
 Infer types, detect mismatches, and suggest corrections as JSON.`;
     } else if (analysisType === 'generate_etl') {
-      systemPrompt = `You are an ETL script generator AI agent specialized in Oracle database. Generate a complete PL/SQL ETL script that:
+      systemPrompt = `You are an ETL script generator AI agent specialized in Oracle database. Generate a CONCISE PL/SQL ETL script that:
 1. Creates staging tables for ledger and statement data
-2. Performs data transformation and cleansing
-3. Handles data type conversions
-4. Implements error logging
-5. Creates the final reconciliation output table
-6. Includes exception handling
+2. Performs basic data transformation
+3. Creates a simple reconciliation output table
 
-The script should be production-ready for Oracle 19c or later.
+Keep the script SHORT and focused - max 100 lines of SQL. This is a proof of concept.
 
-Respond with a JSON object:
+IMPORTANT: Return ONLY a valid JSON object (no markdown). Use this exact structure:
 {
-  "script": "-- Full PL/SQL script here",
-  "tables": [
-    {
-      "name": "string",
-      "purpose": "string",
-      "columns": [{"name": "string", "type": "string", "nullable": boolean}]
-    }
-  ],
-  "procedures": [
-    {
-      "name": "string", 
-      "purpose": "string",
-      "parameters": ["string"]
-    }
-  ],
-  "executionOrder": ["string"]
+  "script": "-- Your SQL script here (use \\n for newlines)",
+  "tables": [{"name": "table_name", "purpose": "description", "columns": []}],
+  "procedures": [],
+  "executionOrder": ["step1", "step2"]
 }`;
-      userPrompt = `Based on these CSV structures, generate a complete Oracle PL/SQL ETL script:
+      userPrompt = `Based on these CSV structures, generate a SHORT Oracle PL/SQL ETL script (max 100 lines):
 
 LEDGER DATA SAMPLE:
 ${ledgerData}
@@ -331,8 +316,35 @@ Return the complete reconciliation result as JSON.`;
       parsedResult = JSON.parse(jsonString);
     } catch (parseError) {
       console.error("Failed to parse AI response as JSON:", parseError);
-      console.error("Raw content:", content);
-      parsedResult = { rawResponse: content };
+      console.log("Raw content length:", content.length);
+      
+      // For ETL analysis, try to extract the script from the rawResponse
+      if (analysisType === 'generate_etl') {
+        // Try to extract script from partial JSON or markdown code block
+        const sqlMatch = content.match(/```(?:sql|plsql)?\s*([\s\S]*?)\s*```/);
+        const scriptMatch = content.match(/"script"\s*:\s*"([\s\S]*?)(?:"|$)/);
+        
+        if (sqlMatch) {
+          parsedResult = { 
+            script: sqlMatch[1],
+            tables: [],
+            procedures: [],
+            executionOrder: []
+          };
+        } else if (scriptMatch) {
+          parsedResult = { 
+            script: scriptMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"'),
+            tables: [],
+            procedures: [],
+            executionOrder: []
+          };
+        } else {
+          // Use raw content as the script itself
+          parsedResult = { rawResponse: content };
+        }
+      } else {
+        parsedResult = { rawResponse: content };
+      }
     }
 
     return new Response(JSON.stringify({ 
