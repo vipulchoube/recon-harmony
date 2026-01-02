@@ -159,6 +159,14 @@ Generate a production-ready Oracle ETL script with staging tables, transformatio
 
 ${EXCEPTION_RULES}
 
+CRITICAL RULES:
+1. A "MATCHED" record is one where ALL key fields match: Transaction_Ref, SwiftRef, ISIN, Value_Date, Quantity, and Amount (within tolerance).
+2. MATCHED records MUST ONLY appear in "matching.matchedRecords" - NEVER in "exceptions.records" or "otherExceptions".
+3. "exceptions.records" MUST ONLY contain records with match_status = "UNMATCHED".
+4. "otherExceptions" MUST ONLY contain UNMATCHED breaks that don't fit codes 101-106.
+5. exception_code "OTHER" is ONLY valid for UNMATCHED records with breaks that don't fit 101-106.
+6. A fully matched trade with NO discrepancies should have exception_code = null or be omitted from exceptions entirely.
+
 You MUST respond with a JSON object with this EXACT structure:
 {
   "summary": [
@@ -174,13 +182,11 @@ You MUST respond with a JSON object with this EXACT structure:
     "totalRecords": number,
     "matchedRecords": [
       {
-        "exception_code": "101" | "102" | "103" | "104" | "105" | "106" | "OTHER",
-        "reason_code": "FEED ISSUE" | "TRADE CANCELLED IN GLOSS" | "UNSETTLED IN GLOSS" | "NOT SETTLED IN MARKET" | "BOOKED TO WRONG ACCOUNT" | "PARTIAL SETTLEMENT" | "OTHER",
-        "match_status": "MATCHED" | "UNMATCHED",
+        "match_status": "MATCHED",
         "confidence": number (0-1),
         "transaction_ref": "string",
         "ledger_swiftref": "string",
-        "settlement_swiftref": "string or null",
+        "settlement_swiftref": "string",
         "isin": "string",
         "quantity": number,
         "amount": number,
@@ -196,7 +202,7 @@ You MUST respond with a JSON object with this EXACT structure:
       {
         "exception_code": "101" | "102" | "103" | "104" | "105" | "106" | "OTHER",
         "reason_code": "string",
-        "match_status": "MATCHED" | "UNMATCHED",
+        "match_status": "UNMATCHED",
         "confidence": number,
         "transaction_ref": "string",
         "ledger_swiftref": "string",
@@ -207,20 +213,21 @@ You MUST respond with a JSON object with this EXACT structure:
         "value_date": "string"
       }
     ],
-"otherExceptions": [
-  {
-    "transaction_ref": "string",
-    "ledger_index": number,
-    "settlement_index": number or null,
-    "other_subtype": "string",
-    "other_description": "string (detailed AI-generated explanation)",
-    "reason_code": "OTHER",
-    "ledger_swiftref": "string",
-    "settlement_swiftref": "string or null",
-    "isin": "string",
-    "value_date": "string"
-  }
-]
+    "otherExceptions": [
+      {
+        "transaction_ref": "string",
+        "ledger_index": number,
+        "settlement_index": number or null,
+        "other_subtype": "string",
+        "other_description": "string (detailed AI-generated explanation)",
+        "reason_code": "OTHER",
+        "match_status": "UNMATCHED",
+        "ledger_swiftref": "string",
+        "settlement_swiftref": "string or null",
+        "isin": "string",
+        "value_date": "string"
+      }
+    ]
   },
   "expectedOutput": [
     {
@@ -239,13 +246,11 @@ You MUST respond with a JSON object with this EXACT structure:
   ]
 }
 
-IMPORTANT:
-- Analyze every row from both ledger and statement
-- Apply matching rules based on exception codes 101-106
-- For any exception not fitting 101-106, classify as OTHER with detailed explanation
-- Calculate confidence scores based on how many matching criteria are met
-- Generate expectedOutput for all records that have exceptions
-- If a record has a mismatch that does not clearly fit exception codes 101-106, you MUST classify it as OTHER and provide a detailed explanation in other_description.`;
+VALIDATION CHECKLIST (verify before responding):
+- [ ] Every record in exceptions.records has match_status = "UNMATCHED"
+- [ ] Every record in otherExceptions has match_status = "UNMATCHED"  
+- [ ] No record with match_status = "MATCHED" appears in exceptions.records or otherExceptions
+- [ ] matchedRecords only contains fully matched trades with NO breaks`;
       userPrompt = `Perform trade reconciliation on these CSV files:
 
 LEDGER DATA:
@@ -256,9 +261,10 @@ ${statementData}
 
 Match records between ledger and statement using the exception rules. For each record:
 1. Try to find a match using Transaction_Ref, SwiftRef, and other key fields
-2. Determine the exception code (101-106 or OTHER) based on the mismatch type
-3. Calculate a confidence score for matched records
-4. Generate the expected output with reason codes
+2. If ALL key fields match perfectly, mark as MATCHED and add ONLY to matchedRecords
+3. If there is ANY mismatch, mark as UNMATCHED and add to exceptions.records with appropriate exception_code
+4. For exceptions not fitting 101-106, use OTHER and add to otherExceptions
+5. NEVER put MATCHED records in exceptions.records or otherExceptions
 
 Return the complete reconciliation result as JSON.`;
     }
@@ -345,6 +351,85 @@ Return the complete reconciliation result as JSON.`;
       } else {
         parsedResult = { rawResponse: content };
       }
+    }
+
+    // Post-processing validation for reconciliation: remove MATCHED entries from exceptions
+    if (analysisType === 'reconciliation' && parsedResult && !parsedResult.rawResponse) {
+      console.log("Running post-processing validation for reconciliation results");
+      
+      // Filter out MATCHED entries from exceptions.records
+      if (parsedResult.exceptions?.records) {
+        const originalCount = parsedResult.exceptions.records.length;
+        parsedResult.exceptions.records = parsedResult.exceptions.records.filter(
+          (record: any) => record.match_status !== "MATCHED"
+        );
+        const removedCount = originalCount - parsedResult.exceptions.records.length;
+        if (removedCount > 0) {
+          console.log(`Removed ${removedCount} MATCHED entries from exceptions.records`);
+        }
+      }
+      
+      // Filter out MATCHED entries from otherExceptions
+      if (parsedResult.exceptions?.otherExceptions) {
+        const originalCount = parsedResult.exceptions.otherExceptions.length;
+        parsedResult.exceptions.otherExceptions = parsedResult.exceptions.otherExceptions.filter(
+          (record: any) => record.match_status !== "MATCHED"
+        );
+        const removedCount = originalCount - parsedResult.exceptions.otherExceptions.length;
+        if (removedCount > 0) {
+          console.log(`Removed ${removedCount} MATCHED entries from otherExceptions`);
+        }
+      }
+      
+      // Recompute exception counts based on filtered records
+      if (parsedResult.exceptions?.records) {
+        const countsByCode: Record<string, number> = {};
+        parsedResult.exceptions.records.forEach((record: any) => {
+          const code = record.exception_code || "OTHER";
+          countsByCode[code] = (countsByCode[code] || 0) + 1;
+        });
+        
+        // Add OTHER exceptions count
+        if (parsedResult.exceptions.otherExceptions?.length > 0) {
+          countsByCode["OTHER"] = (countsByCode["OTHER"] || 0) + parsedResult.exceptions.otherExceptions.length;
+        }
+        
+        parsedResult.exceptions.exceptionCounts = Object.entries(countsByCode).map(([code, count]) => ({
+          code,
+          count
+        }));
+      }
+      
+      // Recompute summary counts
+      if (parsedResult.summary && Array.isArray(parsedResult.summary)) {
+        const summaryCountsByCode: Record<string, { desc: string; count: number }> = {};
+        
+        // Count from exceptions.records
+        parsedResult.exceptions?.records?.forEach((record: any) => {
+          const code = record.exception_code || "OTHER";
+          const desc = record.reason_code || "OTHER";
+          if (!summaryCountsByCode[code]) {
+            summaryCountsByCode[code] = { desc, count: 0 };
+          }
+          summaryCountsByCode[code].count++;
+        });
+        
+        // Count from otherExceptions
+        parsedResult.exceptions?.otherExceptions?.forEach(() => {
+          if (!summaryCountsByCode["OTHER"]) {
+            summaryCountsByCode["OTHER"] = { desc: "OTHER", count: 0 };
+          }
+          summaryCountsByCode["OTHER"].count++;
+        });
+        
+        parsedResult.summary = Object.entries(summaryCountsByCode).map(([code, data]) => ({
+          exceptionCode: code,
+          exceptionDescription: data.desc,
+          count: data.count
+        }));
+      }
+      
+      console.log("Post-processing validation completed");
     }
 
     return new Response(JSON.stringify({ 
