@@ -615,11 +615,17 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
                     Assign To
                   </Label>
                   <div className="flex gap-2">
-                    <Input 
-                      placeholder="Enter assignee name..."
-                      value={assignTo}
-                      onChange={(e) => setAssignTo(e.target.value)}
-                    />
+                    <Select value={assignTo} onValueChange={setAssignTo}>
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Select team..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Euroclear settlement team">Euroclear settlement team</SelectItem>
+                        <SelectItem value="Crest settlement team">Crest settlement team</SelectItem>
+                        <SelectItem value="Clearstream settlement team">Clearstream settlement team</SelectItem>
+                        <SelectItem value="Domestic settlement team">Domestic settlement team</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <Button onClick={handleAssign} variant="outline" size="sm">
                       Assign
                     </Button>
@@ -753,11 +759,17 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
                     Assign To
                   </Label>
                   <div className="flex gap-2">
-                    <Input 
-                      placeholder="Enter assignee name..."
-                      value={assignTo}
-                      onChange={(e) => setAssignTo(e.target.value)}
-                    />
+                    <Select value={assignTo} onValueChange={setAssignTo}>
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Select team..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Euroclear settlement team">Euroclear settlement team</SelectItem>
+                        <SelectItem value="Crest settlement team">Crest settlement team</SelectItem>
+                        <SelectItem value="Clearstream settlement team">Clearstream settlement team</SelectItem>
+                        <SelectItem value="Domestic settlement team">Domestic settlement team</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <Button onClick={handleOtherAssign} variant="outline" size="sm">
                       Assign
                     </Button>

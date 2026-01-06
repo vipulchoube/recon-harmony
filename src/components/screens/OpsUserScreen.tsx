@@ -253,7 +253,20 @@ export function OpsUserScreen() {
               </div>
               <div className="space-y-2">
                 <Label>Assign To</Label>
-                <div className="flex gap-2"><Input placeholder="Assignee name..." value={assignTo} onChange={(e) => setAssignTo(e.target.value)} /><Button onClick={handleAssign} variant="outline" size="sm">Assign</Button></div>
+                <div className="flex gap-2">
+                  <Select value={assignTo} onValueChange={setAssignTo}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Select team..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Euroclear settlement team">Euroclear settlement team</SelectItem>
+                      <SelectItem value="Crest settlement team">Crest settlement team</SelectItem>
+                      <SelectItem value="Clearstream settlement team">Clearstream settlement team</SelectItem>
+                      <SelectItem value="Domestic settlement team">Domestic settlement team</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button onClick={handleAssign} variant="outline" size="sm">Assign</Button>
+                </div>
               </div>
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <Button variant="outline" onClick={() => setCaseDialogOpen(false)}>Cancel</Button>
