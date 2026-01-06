@@ -36,15 +36,7 @@ export function ReconUserScreen() {
       trendUp: true,
     },
     {
-      title: "Total Exceptions",
-      value: totalExceptions,
-      icon: AlertTriangle,
-      trend: "+12%",
-      trendUp: true,
-      variant: "destructive" as const,
-    },
-    {
-      title: "Matched",
+      title: "Auto-Matched",
       value: matchedCount,
       icon: CheckCircle2,
       trend: "+8%",
@@ -52,13 +44,21 @@ export function ReconUserScreen() {
       variant: "success" as const,
     },
     {
-      title: "Unmatched",
-      value: unmatchedCount,
-      icon: XCircle,
-      trend: "-5%",
-      trendUp: false,
-      variant: "warning" as const,
+      title: "AI-identified Exceptions",
+      value: totalExceptions,
+      icon: AlertTriangle,
+      trend: "+12%",
+      trendUp: true,
+      variant: "destructive" as const,
     },
+    // {
+    //   title: "Unmatched",
+    //   value: unmatchedCount,
+    //   icon: XCircle,
+    //   trend: "-5%",
+    //   trendUp: false,
+    //   variant: "warning" as const,
+    // },
   ];
 
   const canStartRecon = ledgerData && statementData && !reconState.isReconciling;
