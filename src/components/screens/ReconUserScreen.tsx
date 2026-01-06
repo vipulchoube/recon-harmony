@@ -99,9 +99,7 @@ export function ReconUserScreen() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold font-mono text-foreground">{stat.value}</div>
-              <p className={`text-xs mt-1 ${stat.trendUp ? "text-success" : "text-destructive"}`}>
-                {stat.trend} from last period
-              </p>
+              <p className={`text-xs mt-1 ${stat.trendUp ? "text-success" : "text-destructive"}`}>{stat.trend}</p>
             </CardContent>
           </Card>
         ))}
