@@ -40,7 +40,7 @@ export function ReconUserScreen() {
       value: matchedCount,
       icon: CheckCircle2,
       // trend: "+8%",
-      // trendUp: true,
+      trendUp: true,
       variant: "success" as const,
     },
     {
@@ -48,7 +48,7 @@ export function ReconUserScreen() {
       value: totalExceptions,
       icon: AlertTriangle,
       // trend: "+12%",
-      // trendUp: true,
+      trendUp: true,
       variant: "destructive" as const,
     },
     {
@@ -56,7 +56,7 @@ export function ReconUserScreen() {
       value: unmatchedCount,
       icon: XCircle,
       // trend: "-5%",
-      // trendUp: false,
+      trendUp: false,
       variant: "warning" as const,
     },
   ];
