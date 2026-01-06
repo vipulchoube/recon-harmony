@@ -29,6 +29,13 @@ export function ReconUserScreen() {
 
   const stats = [
     {
+      title: "Total Records",
+      value: totalRecords,
+      icon: BarChart3,
+      trend: "+2%",
+      trendUp: true,
+    },
+    {
       title: "Total Exceptions",
       value: totalExceptions,
       icon: AlertTriangle,
@@ -51,13 +58,6 @@ export function ReconUserScreen() {
       trend: "-5%",
       trendUp: false,
       variant: "warning" as const,
-    },
-    {
-      title: "Total Records",
-      value: totalRecords,
-      icon: BarChart3,
-      trend: "+2%",
-      trendUp: true,
     },
   ];
 
