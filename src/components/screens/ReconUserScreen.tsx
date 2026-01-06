@@ -32,8 +32,8 @@ export function ReconUserScreen() {
       title: "Total Records",
       value: totalRecords,
       icon: BarChart3,
-      trend: "+2%",
-      trendUp: true,
+      // trend: "+2%",
+      // trendUp: true,
     },
     {
       title: "Auto-Matched",
