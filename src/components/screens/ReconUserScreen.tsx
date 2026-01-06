@@ -40,24 +40,24 @@ export function ReconUserScreen() {
       value: matchedCount,
       icon: CheckCircle2,
       // trend: "+8%",
-      trendUp: true,
-      variant: "success" as const,
+      // trendUp: true,
+      // variant: "success" as const,
     },
     {
       title: "AI-identified Exceptions",
       value: totalExceptions,
       icon: AlertTriangle,
       // trend: "+12%",
-      trendUp: true,
-      variant: "destructive" as const,
+      // trendUp: true,
+      // variant: "destructive" as const,
     },
     {
       title: "Unmatched",
       value: unmatchedCount,
       icon: XCircle,
       // trend: "-5%",
-      trendUp: false,
-      variant: "warning" as const,
+      // trendUp: false,
+      // variant: "warning" as const,
     },
   ];
 
@@ -99,7 +99,7 @@ export function ReconUserScreen() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold font-mono text-foreground">{stat.value}</div>
-              <p className={`text-xs mt-1 ${stat.trendUp ? "text-success" : "text-destructive"}`}>{stat.trend}</p>
+              {/* <p className={`text-xs mt-1 ${stat.trendUp ? "text-success" : "text-destructive"}`}>{stat.trend}</p> */}
             </CardContent>
           </Card>
         ))}
