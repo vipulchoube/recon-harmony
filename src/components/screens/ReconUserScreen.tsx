@@ -51,14 +51,14 @@ export function ReconUserScreen() {
       trendUp: true,
       variant: "destructive" as const,
     },
-    // {
-    //   title: "Unmatched",
-    //   value: unmatchedCount,
-    //   icon: XCircle,
-    //   trend: "-5%",
-    //   trendUp: false,
-    //   variant: "warning" as const,
-    // },
+    {
+      title: "Unmatched",
+      value: unmatchedCount,
+      icon: XCircle,
+      trend: "-5%",
+      trendUp: false,
+      variant: "warning" as const,
+    },
   ];
 
   const canStartRecon = ledgerData && statementData && !reconState.isReconciling;
