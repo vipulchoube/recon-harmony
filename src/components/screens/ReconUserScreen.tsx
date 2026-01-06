@@ -37,7 +37,7 @@ export function ReconUserScreen() {
     },
     {
       title: "Auto-Matched",
-      value: matchedCount,
+      value: (matchedCount / totalRecords) * 100,
       icon: CheckCircle2,
       // trend: "+8%",
       // trendUp: true,
