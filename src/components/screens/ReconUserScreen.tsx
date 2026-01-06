@@ -41,7 +41,7 @@ export function ReconUserScreen() {
       icon: CheckCircle2,
       // trend: "+8%",
       // trendUp: true,
-      variant: "success" as const,
+      // variant: "success" as const,
     },
     {
       title: "AI-identified Exceptions",
@@ -49,7 +49,7 @@ export function ReconUserScreen() {
       icon: AlertTriangle,
       // trend: "+12%",
       // trendUp: true,
-      variant: "destructive" as const,
+      // variant: "destructive" as const,
     },
     {
       title: "Unmatched",
@@ -57,7 +57,7 @@ export function ReconUserScreen() {
       icon: XCircle,
       // trend: "-5%",
       // trendUp: false,
-      variant: "warning" as const,
+      // variant: "warning" as const,
     },
   ];
 
