@@ -119,8 +119,8 @@ export function ReconUserScreen() {
               <h3 className="text-lg font-medium text-foreground mb-2">No Reconciliation Results</h3>
               <p className="text-sm">
                 {!ledgerData || !statementData
-                  ? "Upload ledger and statement files in the Admin screen first, then click Start Reconciliation."
-                  : "Click Start Reconciliation to begin the reconciliation process."}
+                  ? "Upload ledger and statement files in the Admin screen first, then click Start AI Reconciliation."
+                  : "Click Start AI Reconciliation to begin the reconciliation process."}
               </p>
             </div>
           </CardContent>
