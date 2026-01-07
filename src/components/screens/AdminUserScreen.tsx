@@ -223,7 +223,7 @@ export function AdminUserScreen() {
       </div>
 
       {/* Agent Analysis Panel */}
-      <AdminAgentPanel state={agentState} />
+      <AdminAgentPanel state={agentState} ledgerData={ledgerData} />
 
       {/* Uploaded Files History */}
       {uploadedFiles.length > 0 && (
