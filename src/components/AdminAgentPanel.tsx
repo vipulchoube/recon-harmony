@@ -325,18 +325,18 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                   <div className="p-4 rounded-lg bg-secondary/50 border border-border">
                     <h4 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
                       <Database className="h-4 w-4 text-info" />
-                      Column Mappings (Target Schema → Statement)
+                      Column Mappings (Statement → Target Schema)
                     </h4>
                     {schemaAnalysis.mappings && schemaAnalysis.mappings.length > 0 ? (
                       <div className="space-y-2">
                         {schemaAnalysis.mappings.map((mapping, i) => (
                           <div key={i} className="p-2 rounded bg-background/50 border border-border/50 flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-1 rounded">{mapping.ledgerColumn}</span>
-                              <span className="text-muted-foreground text-xs">(Target)</span>
-                              <span className="text-muted-foreground">→</span>
                               <span className="font-mono text-xs text-info bg-info/10 px-2 py-1 rounded">{mapping.statementColumn}</span>
                               <span className="text-muted-foreground text-xs">(Statement)</span>
+                              <span className="text-muted-foreground">→</span>
+                              <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-1 rounded">{mapping.ledgerColumn}</span>
+                              <span className="text-muted-foreground text-xs">(Target)</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <span className={`text-xs px-2 py-0.5 rounded ${
