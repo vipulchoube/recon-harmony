@@ -3,8 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useRecon } from "@/context/ReconContext";
 import { UploadedFile } from "@/types/recon";
-import { Upload, FileSpreadsheet, CheckCircle, Loader2, Bot, Play, ListFilter, Database } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Upload, FileSpreadsheet, CheckCircle, Loader2, Bot, Play, ListFilter } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { useDataAgent } from "@/hooks/useDataAgent";
@@ -222,44 +221,6 @@ export function AdminUserScreen() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Ledger Schema Preview */}
-      <Card className="glass-card">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Database className="h-4 w-4 text-primary" />
-            Ledger Schema Preview
-            <span className="text-xs font-normal text-muted-foreground ml-2">
-              ({reconciliationTypeLabels[reconciliationType]})
-            </span>
-          </CardTitle>
-          <CardDescription className="text-xs">
-            Target schema columns for reconciliation mapping
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-48">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-              {reconciliationSchemas[reconciliationType].map((col, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center gap-2 p-2 rounded-md bg-muted/50 border border-border/50"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-foreground truncate">{col.columnName}</p>
-                    <p className="text-[10px] text-muted-foreground">{col.inferredType}</p>
-                  </div>
-                  {!col.nullable && (
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
-                      REQ
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-        </CardContent>
-      </Card>
 
       {/* Agent Analysis Panel */}
       <AdminAgentPanel state={agentState} />
