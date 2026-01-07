@@ -58,7 +58,14 @@ export function ReconUserScreen() {
     await runReconciliation(ledgerCSV, statementCSV);
   };
 
-  // Update context when reconciliation completes (and normalize unknown tags to OTHER)
+  // Auto-assign exceptions based on exception code
+  const getAssignedTeam = (exceptionCode: ExceptionCode): string | undefined => {
+    if (exceptionCode === '102') return 'Domestic settlement team';
+    if (exceptionCode === '106') return 'Euroclear settlement team';
+    return undefined;
+  };
+
+  // Update context when reconciliation completes (normalize unknown tags to OTHER and auto-assign)
   useEffect(() => {
     const incoming = reconState.reconciliationResult;
     if (!incoming || incoming === reconciliationResult) return;
@@ -68,10 +75,14 @@ export function ReconUserScreen() {
       exceptions: incoming.exceptions
         ? {
             ...incoming.exceptions,
-            records: (incoming.exceptions.records || []).map(r => ({
-              ...r,
-              exception_code: normalizeExceptionCode(r.exception_code),
-            })),
+            records: (incoming.exceptions.records || []).map(r => {
+              const normalizedCode = normalizeExceptionCode(r.exception_code);
+              return {
+                ...r,
+                exception_code: normalizedCode,
+                assigned_to: r.assigned_to || getAssignedTeam(normalizedCode),
+              };
+            }),
           }
         : incoming.exceptions,
     };
