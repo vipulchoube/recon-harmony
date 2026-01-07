@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -38,6 +38,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { ReconciliationResult, ExceptionCode, EXCEPTION_DEFINITIONS, ExceptionRecord, OtherException } from '@/types/recon';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { useRecon, AssignedCase } from '@/context/ReconContext';
 
 interface ReconciliationDashboardProps {
   result: ReconciliationResult;
@@ -53,7 +54,19 @@ interface CaseState {
   comments: { author: string; content: string; createdAt: Date }[];
 }
 
+// Auto-assignment rules
+const AUTO_ASSIGN_RULES: Record<ExceptionCode, string> = {
+  '102': 'Domestic settlement team',
+  '106': 'Euroclear settlement team',
+  '101': '',
+  '103': '',
+  '104': '',
+  '105': '',
+  'OTHER': '',
+};
+
 export function ReconciliationDashboard({ result }: ReconciliationDashboardProps) {
+  const { addAssignedCase } = useRecon();
   const [exceptionCodeFilter, setExceptionCodeFilter] = useState<string>('all');
   const [reasonCodeFilter, setReasonCodeFilter] = useState<string>('all');
   const [selectedCase, setSelectedCase] = useState<ExceptionRecord | null>(null);
@@ -68,6 +81,8 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
   const [caseStates, setCaseStates] = useState<Record<string, CaseState>>({});
   // Track case states for OTHER exceptions
   const [otherCaseStates, setOtherCaseStates] = useState<Record<string, CaseState>>({});
+  // Track if auto-assignment has been applied
+  const [autoAssignApplied, setAutoAssignApplied] = useState(false);
 
   const getExceptionDescription = (code: ExceptionCode): string => {
     const def = EXCEPTION_DEFINITIONS.find(d => d.code === code);
@@ -127,6 +142,51 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
   const getOtherCaseId = (index: number) => {
     return `CASE-OTHER-${index + 1}`;
   };
+
+  // Auto-assign 102 to Domestic settlement team and 106 to Euroclear settlement team
+  useEffect(() => {
+    if (autoAssignApplied || exceptionRecords101to106.length === 0) return;
+
+    const autoAssignments: Record<string, CaseState> = {};
+    
+    exceptionRecords101to106.forEach((record, index) => {
+      const autoAssignTeam = AUTO_ASSIGN_RULES[record.exception_code];
+      if (autoAssignTeam) {
+        const caseId = `CASE-${record.exception_code}-${index + 1}`;
+        autoAssignments[caseId] = {
+          caseId,
+          status: 'UNDER REVIEW',
+          assignedTo: autoAssignTeam,
+          exceptionCode: record.exception_code,
+          comments: []
+        };
+        
+        // Push to context for Ops User screen
+        addAssignedCase({
+          caseId,
+          exceptionCode: record.exception_code,
+          reasonCode: record.reason_code,
+          transactionRef: record.transaction_ref,
+          ledgerSwiftRef: record.ledger_swiftref,
+          settlementSwiftRef: record.settlement_swiftref,
+          isin: record.isin,
+          valueDate: record.value_date,
+          amount: record.amount,
+          quantity: record.quantity,
+          assignedTo: autoAssignTeam,
+          status: 'UNDER REVIEW',
+          comments: [],
+          assignedAt: new Date()
+        });
+      }
+    });
+
+    if (Object.keys(autoAssignments).length > 0) {
+      setCaseStates(prev => ({ ...prev, ...autoAssignments }));
+      setAutoAssignApplied(true);
+      toast.success(`Auto-assigned ${Object.keys(autoAssignments).length} exceptions to teams`);
+    }
+  }, [exceptionRecords101to106, autoAssignApplied, addAssignedCase]);
 
   const getCaseState = (caseId: string): CaseState => {
     return caseStates[caseId] || {
@@ -198,6 +258,24 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
         status: 'UNDER REVIEW'
       }
     }));
+
+    // Push to context for Ops User screen
+    addAssignedCase({
+      caseId,
+      exceptionCode: selectedCase.exception_code,
+      reasonCode: selectedCase.reason_code,
+      transactionRef: selectedCase.transaction_ref,
+      ledgerSwiftRef: selectedCase.ledger_swiftref,
+      settlementSwiftRef: selectedCase.settlement_swiftref,
+      isin: selectedCase.isin,
+      valueDate: selectedCase.value_date,
+      amount: selectedCase.amount,
+      quantity: selectedCase.quantity,
+      assignedTo: assignTo,
+      status: 'UNDER REVIEW',
+      comments: currentState.comments,
+      assignedAt: new Date()
+    });
     
     toast.success(`Case assigned to ${assignTo}`);
   };
