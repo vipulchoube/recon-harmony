@@ -13,7 +13,8 @@ import {
   Download,
   Bot,
   FileInput,
-  ShieldCheck
+  ShieldCheck,
+  Link2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -137,7 +138,7 @@ export function AdminAgentPanel({ state }: AdminAgentPanelProps) {
         {/* Analysis Tabs */}
         {hasAnyData && (
           <Tabs defaultValue="ingestion" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 bg-secondary">
+            <TabsList className="grid w-full grid-cols-5 bg-secondary">
               <TabsTrigger value="ingestion">
                 <FileInput className="h-3 w-3 mr-1" />
                 Data Ingestion
@@ -153,6 +154,10 @@ export function AdminAgentPanel({ state }: AdminAgentPanelProps) {
               <TabsTrigger value="etl" disabled={!etlScript}>
                 <Code className="h-3 w-3 mr-1" />
                 ETL Script
+              </TabsTrigger>
+              <TabsTrigger value="automatch" disabled={!etlScript}>
+                <Link2 className="h-3 w-3 mr-1" />
+                Auto-match Rules
               </TabsTrigger>
             </TabsList>
 
@@ -359,6 +364,40 @@ export function AdminAgentPanel({ state }: AdminAgentPanelProps) {
             <TabsContent value="quality" className="space-y-4">
               {dataQuality && (
                 <>
+                  {/* Checks being performed */}
+                  <div className="p-4 rounded-lg bg-secondary/50 border border-border">
+                    <h4 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
+                      <ShieldCheck className="h-4 w-4 text-primary" />
+                      Data Quality Checks Performed
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="h-3 w-3 text-success" />
+                        <span className="text-muted-foreground">Null Value Detection</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="h-3 w-3 text-success" />
+                        <span className="text-muted-foreground">Duplicate Record Check</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="h-3 w-3 text-success" />
+                        <span className="text-muted-foreground">Data Type Validation</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="h-3 w-3 text-success" />
+                        <span className="text-muted-foreground">Date Format Consistency</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="h-3 w-3 text-success" />
+                        <span className="text-muted-foreground">Numeric Precision Check</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="h-3 w-3 text-success" />
+                        <span className="text-muted-foreground">Required Field Validation</span>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-4 gap-3">
                     <div className="p-3 rounded-lg bg-secondary/50 text-center">
                       <p className="text-2xl font-bold font-mono text-foreground">
@@ -386,7 +425,7 @@ export function AdminAgentPanel({ state }: AdminAgentPanelProps) {
                     </div>
                   </div>
                   
-                  <ScrollArea className="h-64">
+                  <ScrollArea className="h-48">
                     <div className="space-y-2">
                       {dataQuality.checks?.map((check, i) => (
                         <div
@@ -515,6 +554,42 @@ export function AdminAgentPanel({ state }: AdminAgentPanelProps) {
                   )}
                 </>
               )}
+            </TabsContent>
+
+            {/* Auto-match Rules Tab */}
+            <TabsContent value="automatch" className="space-y-4">
+              <div className="p-4 rounded-lg bg-secondary/50 border border-border">
+                <h4 className="text-sm font-medium text-foreground mb-4 flex items-center gap-2">
+                  <Link2 className="h-4 w-4 text-primary" />
+                  Auto-match Rules
+                </h4>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border border-border/50">
+                    <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-medium flex items-center justify-center">1</span>
+                    <span className="text-sm text-foreground">Match by Transaction Reference</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border border-border/50">
+                    <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-medium flex items-center justify-center">2</span>
+                    <span className="text-sm text-foreground">Match by Swift Reference</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border border-border/50">
+                    <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-medium flex items-center justify-center">3</span>
+                    <span className="text-sm text-foreground">Match by Settlement Status</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border border-border/50">
+                    <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-medium flex items-center justify-center">4</span>
+                    <span className="text-sm text-foreground">Match by Quantity</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border border-border/50">
+                    <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-medium flex items-center justify-center">5</span>
+                    <span className="text-sm text-foreground">Match by Amount</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border border-border/50">
+                    <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-medium flex items-center justify-center">6</span>
+                    <span className="text-sm text-foreground">Match by Value Date</span>
+                  </div>
+                </div>
+              </div>
             </TabsContent>
           </Tabs>
         )}
