@@ -1,4 +1,4 @@
-export type UserRole = 'recon' | 'ops' | 'admin';
+export type UserRole = 'recon' | 'ops' | 'admin' | 'recon_lead';
 
 export type CaseStatus = 'open' | 'under_review' | 'resolved';
 

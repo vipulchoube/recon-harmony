@@ -6,28 +6,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { User, Settings, Shield } from 'lucide-react';
+import { User, Settings, Shield, Users } from 'lucide-react';
 
 interface RoleSelectorProps {
   activeRole: UserRole;
   onRoleChange: (role: UserRole) => void;
 }
 
-const roleConfig = {
+const roleConfig: Record<UserRole, { label: string; icon: typeof User }> = {
   recon: {
     label: 'Recon User',
     icon: User,
-    description: 'View reconciliation dashboard',
   },
   ops: {
     label: 'Ops User',
     icon: Settings,
-    description: 'Manage cases & exceptions',
   },
   admin: {
     label: 'Admin User',
     icon: Shield,
-    description: 'Upload files & configure',
+  },
+  recon_lead: {
+    label: 'Recon Lead',
+    icon: Users,
   },
 };
 
