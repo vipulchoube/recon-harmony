@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { Exception, UploadedFile, Reconciliation, CaseStatus, Comment, ReconciliationResult } from '@/types/recon';
 import { mockExceptions, mockUploadedFiles, mockReconciliations } from '@/data/mockData';
+import { ReconciliationType } from '@/data/positionSchema';
 
 interface ReconContextType {
   exceptions: Exception[];
@@ -9,6 +10,7 @@ interface ReconContextType {
   reconciliationResult: ReconciliationResult | null;
   ledgerData: string;
   statementData: string;
+  reconciliationType: ReconciliationType;
   updateExceptionStatus: (id: string, status: CaseStatus) => void;
   addComment: (exceptionId: string, comment: Omit<Comment, 'id' | 'createdAt'>) => void;
   addUploadedFile: (file: UploadedFile) => void;
@@ -16,6 +18,7 @@ interface ReconContextType {
   setReconciliationResult: (result: ReconciliationResult | null) => void;
   setLedgerData: (data: string) => void;
   setStatementData: (data: string) => void;
+  setReconciliationType: (type: ReconciliationType) => void;
 }
 
 const ReconContext = createContext<ReconContextType | undefined>(undefined);
@@ -27,6 +30,7 @@ export function ReconProvider({ children }: { children: ReactNode }) {
   const [reconciliationResult, setReconciliationResult] = useState<ReconciliationResult | null>(null);
   const [ledgerData, setLedgerData] = useState<string>('');
   const [statementData, setStatementData] = useState<string>('');
+  const [reconciliationType, setReconciliationType] = useState<ReconciliationType>('position');
 
   const updateExceptionStatus = (id: string, status: CaseStatus) => {
     setExceptions((prev) =>
@@ -89,6 +93,7 @@ export function ReconProvider({ children }: { children: ReactNode }) {
         reconciliationResult,
         ledgerData,
         statementData,
+        reconciliationType,
         updateExceptionStatus,
         addComment,
         addUploadedFile,
@@ -96,6 +101,7 @@ export function ReconProvider({ children }: { children: ReactNode }) {
         setReconciliationResult,
         setLedgerData,
         setStatementData,
+        setReconciliationType,
       }}
     >
       {children}

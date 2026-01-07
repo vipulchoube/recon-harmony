@@ -6,8 +6,10 @@ const corsHeaders = {
 };
 
 interface AnalysisRequest {
-  ledgerData: string;
+  ledgerData?: string;
   statementData: string;
+  targetSchema?: string;
+  reconciliationType?: 'position' | 'nostro' | 'cash';
   analysisType: 'data_quality' | 'schema_analysis' | 'generate_etl' | 'reconciliation';
 }
 
@@ -35,20 +37,20 @@ serve(async (req) => {
   }
 
   try {
-    const { ledgerData, statementData, analysisType } = await req.json() as AnalysisRequest;
+    const { ledgerData, statementData, targetSchema, reconciliationType, analysisType } = await req.json() as AnalysisRequest;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    console.log(`Processing ${analysisType} analysis request`);
+    console.log(`Processing ${analysisType} analysis request for ${reconciliationType || 'default'} reconciliation`);
 
     let systemPrompt = '';
     let userPrompt = '';
 
     if (analysisType === 'data_quality') {
-      systemPrompt = `You are a data quality analyst AI agent specialized in trade reconciliation. Analyze the provided CSV data and identify:
+      systemPrompt = `You are a data quality analyst AI agent specialized in trade reconciliation. Analyze the provided statement CSV data and identify:
 1. Data quality issues (nulls, duplicates, invalid formats)
 2. Column data type mismatches
 3. Referential integrity issues
@@ -74,25 +76,25 @@ Respond with a JSON object with this structure:
     "criticalIssues": number
   }
 }`;
-      userPrompt = `Analyze the following trade data for quality issues:
-
-LEDGER DATA:
-${ledgerData}
+      userPrompt = `Analyze the following statement data for quality issues:
 
 STATEMENT DATA:
 ${statementData}
 
+${targetSchema ? `TARGET SCHEMA (for reference):
+${targetSchema}` : ''}
+
 Perform comprehensive data quality checks and return the results as JSON.`;
     } else if (analysisType === 'schema_analysis') {
-      systemPrompt = `You are a schema analysis AI agent. Analyze the provided CSV data and:
-1. Infer column data types
-2. Detect schema mismatches between ledger and statement
+      systemPrompt = `You are a schema analysis AI agent. Analyze the provided statement CSV data and compare it against the target schema:
+1. Infer column data types from the statement data
+2. Detect schema mismatches between statement columns and target schema columns
 3. Suggest schema corrections for invalid values
-4. Map columns between the two datasets
+4. Map statement columns to target schema columns
 
 Respond with a JSON object with this structure:
 {
-  "ledgerSchema": [
+  "statementSchema": [
     {
       "columnName": "string",
       "inferredType": "STRING" | "INTEGER" | "DECIMAL" | "DATE" | "BOOLEAN",
@@ -101,10 +103,10 @@ Respond with a JSON object with this structure:
       "issues": ["string"]
     }
   ],
-  "statementSchema": [...same structure...],
+  "targetSchema": [...same structure...],
   "mappings": [
     {
-      "ledgerColumn": "string",
+      "ledgerColumn": "string (this is the TARGET schema column)",
       "statementColumn": "string",
       "matchConfidence": number,
       "transformationNeeded": boolean,
@@ -113,7 +115,7 @@ Respond with a JSON object with this structure:
   ],
   "schemaCorrections": [
     {
-      "file": "ledger" | "statement",
+      "file": "statement",
       "column": "string",
       "currentValue": "string",
       "suggestedValue": "string",
@@ -121,18 +123,18 @@ Respond with a JSON object with this structure:
     }
   ]
 }`;
-      userPrompt = `Analyze the schema of these CSV files:
+      userPrompt = `Analyze the schema of the statement CSV and map it to the target schema:
 
-LEDGER DATA:
-${ledgerData}
+TARGET SCHEMA (the expected/reference schema):
+${targetSchema}
 
-STATEMENT DATA:
+STATEMENT DATA (the uploaded data to compare):
 ${statementData}
 
-Infer types, detect mismatches, and suggest corrections as JSON.`;
+Compare the statement data columns against the target schema. For each column in the target schema, find the best matching column in the statement data. Infer types, detect mismatches, and suggest corrections as JSON.`;
     } else if (analysisType === 'generate_etl') {
       systemPrompt = `You are an ETL script generator AI agent specialized in Oracle database. Generate a CONCISE PL/SQL ETL script that:
-1. Creates staging tables for ledger and statement data
+1. Creates staging tables for statement data based on the target schema
 2. Performs basic data transformation
 3. Creates a simple reconciliation output table
 
@@ -145,15 +147,15 @@ IMPORTANT: Return ONLY a valid JSON object (no markdown). Use this exact structu
   "procedures": [],
   "executionOrder": ["step1", "step2"]
 }`;
-      userPrompt = `Based on these CSV structures, generate a SHORT Oracle PL/SQL ETL script (max 100 lines):
+      userPrompt = `Based on the target schema and statement data structure, generate a SHORT Oracle PL/SQL ETL script (max 100 lines):
 
-LEDGER DATA SAMPLE:
-${ledgerData}
+TARGET SCHEMA:
+${targetSchema}
 
 STATEMENT DATA SAMPLE:
 ${statementData}
 
-Generate a production-ready Oracle ETL script with staging tables, transformations, and reconciliation logic.`;
+Generate a production-ready Oracle ETL script with staging tables, transformations, and reconciliation logic for ${reconciliationType || 'position'} reconciliation.`;
     } else if (analysisType === 'reconciliation') {
       systemPrompt = `You are a trade reconciliation AI agent. Analyze ledger and statement data to perform matching and exception detection.
 

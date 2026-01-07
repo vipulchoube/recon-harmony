@@ -3,14 +3,26 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useRecon } from '@/context/ReconContext';
 import { UploadedFile } from '@/types/recon';
-import { Upload, FileSpreadsheet, CheckCircle, Loader2, Bot, Play } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle, Loader2, Bot, Play, ListFilter } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { useDataAgent } from '@/hooks/useDataAgent';
 import { AdminAgentPanel } from '@/components/AdminAgentPanel';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ReconciliationType, reconciliationTypeLabels, reconciliationSchemas } from '@/data/positionSchema';
 
 export function AdminUserScreen() {
-  const { uploadedFiles, addUploadedFile, updateFileProgress, setLedgerData, setStatementData, ledgerData, statementData } = useRecon();
+  const { 
+    uploadedFiles, 
+    addUploadedFile, 
+    updateFileProgress, 
+    setLedgerData, 
+    setStatementData, 
+    ledgerData, 
+    statementData,
+    reconciliationType,
+    setReconciliationType
+  } = useRecon();
   const [isUploading, setIsUploading] = useState<'ledger' | 'statement' | null>(null);
   const ledgerInputRef = useRef<HTMLInputElement>(null);
   const statementInputRef = useRef<HTMLInputElement>(null);
@@ -68,16 +80,18 @@ export function AdminUserScreen() {
   };
 
   const handleRunAgent = () => {
-    if (!ledgerData || !statementData) {
-      toast.error('Missing files', {
-        description: 'Please upload both ledger and statement files first',
+    if (!statementData) {
+      toast.error('Missing file', {
+        description: 'Please upload a statement file first',
       });
       return;
     }
-    runSchemaSetup(ledgerData, statementData);
+    // Get the selected schema for comparison
+    const selectedSchema = reconciliationSchemas[reconciliationType];
+    runSchemaSetup(statementData, selectedSchema, reconciliationType);
   };
 
-  const canRunAgent = ledgerData && statementData && !agentState.isAnalyzing;
+  const canRunAgent = statementData && !agentState.isAnalyzing;
 
   return (
     <div className="space-y-6">
@@ -86,8 +100,33 @@ export function AdminUserScreen() {
         <p className="text-muted-foreground">Upload files and run AI-powered schema setup</p>
       </div>
 
-      {/* Upload Section - 3 cards that fit to window */}
-      <div className="grid gap-4 grid-cols-3">
+      {/* Upload Section - 4 cards that fit to window */}
+      <div className="grid gap-4 grid-cols-4">
+        <Card className="glass-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <ListFilter className="h-4 w-4 text-primary" />
+              Select Reconciliation Type
+            </CardTitle>
+            <CardDescription className="text-xs">Choose recon type</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Select 
+              value={reconciliationType} 
+              onValueChange={(value: ReconciliationType) => setReconciliationType(value)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent className="bg-background border border-border z-50">
+                <SelectItem value="position">{reconciliationTypeLabels.position}</SelectItem>
+                <SelectItem value="nostro">{reconciliationTypeLabels.nostro}</SelectItem>
+                <SelectItem value="cash">{reconciliationTypeLabels.cash}</SelectItem>
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+
         <Card className="glass-card">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm">
