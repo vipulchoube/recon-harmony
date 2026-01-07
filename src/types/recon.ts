@@ -261,7 +261,6 @@ export interface ExceptionRecord {
   quantity: number;
   amount: number;
   value_date: string;
-  assigned_to?: string;
 }
 
 export interface OtherException {
