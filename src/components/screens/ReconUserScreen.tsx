@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRecon } from "@/context/ReconContext";
 import { ReconciliationDashboard } from "@/components/ReconciliationDashboard";
 import { useReconciliation } from "@/hooks/useReconciliation";
-import { computePreReconciliationStats, sampleLedgerData, sampleStatementData } from "@/data/sampleReconciliationData";
+import { computePreReconciliationStats, getOpenExceptionRecordsCSV, sampleLedgerData, sampleStatementData } from "@/data/sampleReconciliationData";
 
 export function ReconUserScreen() {
   const { reconciliationResult, setReconciliationResult, ledgerData, statementData, setLedgerData, setStatementData } = useRecon();
@@ -29,12 +29,17 @@ export function ReconUserScreen() {
   const displayAutoMatched = preReconStats.autoMatched;
   const displayOpenExceptions = preReconStats.openExceptions;
   
-  // AI-identified exceptions is 0 before reconciliation, then updates from AI result
+  // AI-identified exceptions is 0 before reconciliation, then count only 101-106 exceptions
   const aiIdentifiedExceptions = hasAIReconciliation 
-    ? (reconciliationResult?.exceptions?.records?.length || 0)
+    ? (reconciliationResult?.exceptions?.records?.filter(r => 
+        ['101', '102', '103', '104', '105', '106'].includes(r.exception_code)
+      )?.length || 0)
     : 0;
 
   const handleStartReconciliation = async () => {
+    // Get only the open exception records for AI reconciliation
+    const { ledgerCSV, statementCSV } = getOpenExceptionRecordsCSV();
+    
     // Set sample data if not already set
     if (!ledgerData) {
       setLedgerData(sampleLedgerData);
@@ -42,7 +47,9 @@ export function ReconUserScreen() {
     if (!statementData) {
       setStatementData(sampleStatementData);
     }
-    await runReconciliation(effectiveLedgerData, effectiveStatementData);
+    
+    // Run reconciliation only on open exceptions
+    await runReconciliation(ledgerCSV, statementCSV);
   };
 
   // Update context when reconciliation completes

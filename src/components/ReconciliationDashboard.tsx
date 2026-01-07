@@ -74,16 +74,40 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
     return def?.category || 'OTHER';
   };
 
-  // Get unique exception codes and reason codes for filters
-  const uniqueExceptionCodes = [...new Set(result.exceptions?.records?.map(r => r.exception_code) || [])];
-  const uniqueReasonCodes = [...new Set(result.exceptions?.records?.map(r => r.reason_code).filter(Boolean) || [])];
+  // Only show exception records with codes 101-106 in the Exception Records table
+  const validExceptionCodes = ['101', '102', '103', '104', '105', '106'];
+  const exceptionRecords101to106 = result.exceptions?.records?.filter(r => 
+    validExceptionCodes.includes(r.exception_code)
+  ) || [];
+  
+  // Get unique exception codes and reason codes for filters (only from 101-106)
+  const uniqueExceptionCodes = [...new Set(exceptionRecords101to106.map(r => r.exception_code))];
+  const uniqueReasonCodes = [...new Set(exceptionRecords101to106.map(r => r.reason_code).filter(Boolean))];
 
-  // Filter exception records
-  const filteredRecords = result.exceptions?.records?.filter(record => {
+  // Filter exception records (only 101-106)
+  const filteredRecords = exceptionRecords101to106.filter(record => {
     const matchesExceptionCode = exceptionCodeFilter === 'all' || record.exception_code === exceptionCodeFilter;
     const matchesReasonCode = reasonCodeFilter === 'all' || record.reason_code === reasonCodeFilter;
     return matchesExceptionCode && matchesReasonCode;
-  }) || [];
+  });
+  
+  // OTHER exceptions include records tagged as OTHER AND records with codes not in 101-106
+  const otherExceptions = [
+    ...(result.exceptions?.otherExceptions || []),
+    // Also include any records with exception_code 'OTHER' from the main records
+    ...(result.exceptions?.records?.filter(r => r.exception_code === 'OTHER') || []).map(r => ({
+      transaction_ref: r.transaction_ref,
+      ledger_index: 0,
+      settlement_index: null,
+      other_subtype: 'UNKNOWN',
+      other_description: r.reason_code || 'Exception could not be matched with known exception codes (101-106)',
+      reason_code: 'OTHER',
+      ledger_swiftref: r.ledger_swiftref,
+      settlement_swiftref: r.settlement_swiftref,
+      isin: r.isin,
+      value_date: r.value_date
+    }))
+  ];
 
   // Prepare chart data from summary
   const chartData = result.summary?.map(item => ({
@@ -457,8 +481,7 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
         </div>
 
         {/* OTHER Exceptions Section */}
-        {result.exceptions?.otherExceptions && 
-         result.exceptions.otherExceptions.length > 0 && (
+        {otherExceptions.length > 0 && (
           <div className="mt-4">
             <h4 className="text-lg font-medium text-foreground mb-2 flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-warning" />

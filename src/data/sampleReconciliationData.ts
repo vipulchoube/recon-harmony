@@ -95,6 +95,61 @@ export function parseCSV(csvString: string): Record<string, string>[] {
   });
 }
 
+// Get only the open exception records as CSV (for AI reconciliation)
+export function getOpenExceptionRecordsCSV(): { ledgerCSV: string; statementCSV: string } {
+  const ledgerRecords = parseCSV(sampleLedgerData);
+  const statementRecords = parseCSV(sampleStatementData);
+  
+  // Create a map of statement records by TransactionRef
+  const statementMap = new Map<string, Record<string, string>>();
+  statementRecords.forEach(record => {
+    statementMap.set(record.TransactionRef, record);
+  });
+  
+  // Find open exception ledger records
+  const openLedgerRecords: Record<string, string>[] = [];
+  const matchedTransactionRefs = new Set<string>();
+  
+  ledgerRecords.forEach(ledgerRecord => {
+    const transactionRef = ledgerRecord.TransactionRef;
+    const statementRecord = statementMap.get(transactionRef);
+    const tradeStatus = ledgerRecord.TradeStatus?.toUpperCase() || '';
+    const settlementStatus = ledgerRecord.SettlementStatus?.toUpperCase() || '';
+    
+    const isException = 
+      tradeStatus === 'CANCELLED' ||
+      settlementStatus === 'OPEN' ||
+      settlementStatus === 'PARTIALLY SETTLED' ||
+      !statementRecord;
+    
+    if (isException) {
+      openLedgerRecords.push(ledgerRecord);
+      matchedTransactionRefs.add(transactionRef);
+    }
+  });
+  
+  // Get matching statement records
+  const openStatementRecords = statementRecords.filter(record => 
+    matchedTransactionRefs.has(record.TransactionRef)
+  );
+  
+  // Convert to CSV
+  const ledgerHeaders = Object.keys(ledgerRecords[0] || {});
+  const statementHeaders = Object.keys(statementRecords[0] || {});
+  
+  const ledgerCSV = [
+    ledgerHeaders.join(','),
+    ...openLedgerRecords.map(row => ledgerHeaders.map(h => row[h] || '').join(','))
+  ].join('\n');
+  
+  const statementCSV = [
+    statementHeaders.join(','),
+    ...openStatementRecords.map(row => statementHeaders.map(h => row[h] || '').join(','))
+  ].join('\n');
+  
+  return { ledgerCSV, statementCSV };
+}
+
 // Pre-compute initial reconciliation stats (before AI analysis)
 export interface PreReconciliationStats {
   totalRecords: number;
