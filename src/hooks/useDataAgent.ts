@@ -7,6 +7,7 @@ import {
   ReconciliationResult 
 } from '@/types/recon';
 import { toast } from 'sonner';
+import { SchemaColumn, ReconciliationType } from '@/data/positionSchema';
 
 export interface AgentState {
   isAnalyzing: boolean;
@@ -29,8 +30,8 @@ export function useDataAgent() {
     error: null,
   });
 
-  // Admin schema setup - only runs data ingestion, schema mapping, data quality, and ETL
-  const runSchemaSetup = async (ledgerData: string, statementData: string) => {
+  // Admin schema setup - compares statement against selected reconciliation schema
+  const runSchemaSetup = async (statementData: string, targetSchema: SchemaColumn[], reconciliationType: ReconciliationType) => {
     setState(prev => ({ 
       ...prev, 
       isAnalyzing: true, 
@@ -41,11 +42,14 @@ export function useDataAgent() {
       etlScript: null,
     }));
 
+    // Convert schema to a format the AI can understand
+    const schemaDescription = JSON.stringify(targetSchema);
+
     try {
       // Step 1: Data Ingestion (Data Quality Checks)
       toast.info('Agent: Running data ingestion...');
       const qualityResponse = await supabase.functions.invoke('analyze-data', {
-        body: { ledgerData, statementData, analysisType: 'data_quality' }
+        body: { statementData, targetSchema: schemaDescription, analysisType: 'data_quality', reconciliationType }
       });
 
       if (qualityResponse.error) {
@@ -60,10 +64,10 @@ export function useDataAgent() {
       }));
       toast.success('Data ingestion completed');
 
-      // Step 2: Schema Mapping
+      // Step 2: Schema Mapping - compare statement to target schema
       toast.info('Agent: Analyzing schema and detecting mappings...');
       const schemaResponse = await supabase.functions.invoke('analyze-data', {
-        body: { ledgerData, statementData, analysisType: 'schema_analysis' }
+        body: { statementData, targetSchema: schemaDescription, analysisType: 'schema_analysis', reconciliationType }
       });
 
       if (schemaResponse.error) {
@@ -91,7 +95,7 @@ export function useDataAgent() {
       // Step 4: Generate ETL Script
       toast.info('Agent: Generating Oracle ETL script...');
       const etlResponse = await supabase.functions.invoke('analyze-data', {
-        body: { ledgerData, statementData, analysisType: 'generate_etl' }
+        body: { statementData, targetSchema: schemaDescription, analysisType: 'generate_etl', reconciliationType }
       });
 
       if (etlResponse.error) {
