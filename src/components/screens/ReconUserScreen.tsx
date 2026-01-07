@@ -23,16 +23,14 @@ export function ReconUserScreen() {
   // Determine which stats to show based on whether AI reconciliation has run
   const hasAIReconciliation = !!reconciliationResult;
   
-  const matchedCount = hasAIReconciliation 
-    ? (reconciliationResult?.matching?.matchedCount || 0)
-    : preReconStats.autoMatched;
-  const unmatchedCount = hasAIReconciliation 
-    ? (reconciliationResult?.matching?.unmatchedCount || 0)
-    : preReconStats.openExceptions;
-  const totalRecords = hasAIReconciliation 
-    ? (reconciliationResult?.matching?.totalRecords || 0)
-    : preReconStats.totalRecords;
-  const totalExceptions = hasAIReconciliation 
+  // IMPORTANT: First 3 stats (total, auto-matched, open exceptions) remain constant
+  // Only AI-identified exceptions updates after reconciliation
+  const displayTotalRecords = preReconStats.totalRecords;
+  const displayAutoMatched = preReconStats.autoMatched;
+  const displayOpenExceptions = preReconStats.openExceptions;
+  
+  // AI-identified exceptions is 0 before reconciliation, then updates from AI result
+  const aiIdentifiedExceptions = hasAIReconciliation 
     ? (reconciliationResult?.exceptions?.records?.length || 0)
     : 0;
 
@@ -55,24 +53,24 @@ export function ReconUserScreen() {
   const stats = [
     {
       title: "Total Records",
-      value: totalRecords,
+      value: displayTotalRecords,
       icon: BarChart3,
     },
     {
       title: "Auto-Matched",
-      value: matchedCount,
+      value: displayAutoMatched,
       icon: CheckCircle2,
       variant: "success" as const,
     },
     {
       title: "Open Exceptions",
-      value: unmatchedCount,
+      value: displayOpenExceptions,
       icon: XCircle,
       variant: "warning" as const,
     },
     {
       title: "AI-identified Exceptions",
-      value: totalExceptions,
+      value: aiIdentifiedExceptions,
       icon: AlertTriangle,
       variant: "destructive" as const,
     },

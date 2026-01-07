@@ -127,38 +127,68 @@ export function computePreReconciliationStats(): PreReconciliationStats {
     statementMap.set(record.TransactionRef, record);
   });
   
-  // Find matches and exceptions
+  // Find matches and exceptions based on business rules:
+  // - CANCELLED trades are exceptions (no settlement expected)
+  // - OPEN settlement status means not yet settled - exception
+  // - PARTIALLY SETTLED means partial match - exception
+  // - SwiftRef mismatch (different prefix CP vs AP but same suffix) - may still match
+  // - Records not in statement - exception
   const openExceptionRecords: OpenExceptionRecord[] = [];
   let autoMatched = 0;
   
   ledgerRecords.forEach(ledgerRecord => {
     const transactionRef = ledgerRecord.TransactionRef;
     const statementRecord = statementMap.get(transactionRef);
+    const tradeStatus = ledgerRecord.TradeStatus?.toUpperCase() || '';
+    const settlementStatus = ledgerRecord.SettlementStatus?.toUpperCase() || '';
     
-    if (statementRecord) {
-      // Record exists in both - check if it's a match or exception
-      const ledgerQuantity = parseInt(ledgerRecord.Quantity) || 0;
-      const statementQuantity = parseInt(statementRecord.Quantity) || 0;
-      const ledgerAmount = parseInt(ledgerRecord.Amount) || 0;
-      const statementAmount = parseInt(statementRecord.Amount) || 0;
-      
-      if (ledgerQuantity === statementQuantity && ledgerAmount === statementAmount) {
-        autoMatched++;
-      } else {
-        // Mismatch - add to open exceptions
-        openExceptionRecords.push({
-          transactionRef,
-          ledgerSwiftRef: ledgerRecord.Swiftref || '',
-          settlementSwiftRef: statementRecord.Swiftref || '',
-          isin: ledgerRecord['Security ISIN'] || '',
-          valueDate: ledgerRecord.ValueDate || '',
-          exceptionCode: '',
-          reasonCode: '',
-          assignedTo: '',
-        });
-      }
-    } else {
-      // Only in ledger - open exception
+    // CANCELLED trades are exceptions - they won't settle
+    if (tradeStatus === 'CANCELLED') {
+      openExceptionRecords.push({
+        transactionRef,
+        ledgerSwiftRef: ledgerRecord.Swiftref || '',
+        settlementSwiftRef: statementRecord?.Swiftref || '',
+        isin: ledgerRecord['Security ISIN'] || '',
+        valueDate: ledgerRecord.ValueDate || '',
+        exceptionCode: '',
+        reasonCode: '',
+        assignedTo: '',
+      });
+      return;
+    }
+    
+    // OPEN settlement status - not yet settled
+    if (settlementStatus === 'OPEN') {
+      openExceptionRecords.push({
+        transactionRef,
+        ledgerSwiftRef: ledgerRecord.Swiftref || '',
+        settlementSwiftRef: statementRecord?.Swiftref || '',
+        isin: ledgerRecord['Security ISIN'] || '',
+        valueDate: ledgerRecord.ValueDate || '',
+        exceptionCode: '',
+        reasonCode: '',
+        assignedTo: '',
+      });
+      return;
+    }
+    
+    // PARTIALLY SETTLED - partial exception
+    if (settlementStatus === 'PARTIALLY SETTLED') {
+      openExceptionRecords.push({
+        transactionRef,
+        ledgerSwiftRef: ledgerRecord.Swiftref || '',
+        settlementSwiftRef: statementRecord?.Swiftref || '',
+        isin: ledgerRecord['Security ISIN'] || '',
+        valueDate: ledgerRecord.ValueDate || '',
+        exceptionCode: '',
+        reasonCode: '',
+        assignedTo: '',
+      });
+      return;
+    }
+    
+    // Check if record exists in statement
+    if (!statementRecord) {
       openExceptionRecords.push({
         transactionRef,
         ledgerSwiftRef: ledgerRecord.Swiftref || '',
@@ -169,7 +199,11 @@ export function computePreReconciliationStats(): PreReconciliationStats {
         reasonCode: '',
         assignedTo: '',
       });
+      return;
     }
+    
+    // SETTLED with matching record in statement - auto-matched
+    autoMatched++;
   });
   
   return {
