@@ -5,6 +5,7 @@ import { Header } from '@/components/Header';
 import { ReconUserScreen } from '@/components/screens/ReconUserScreen';
 import { OpsUserScreen } from '@/components/screens/OpsUserScreen';
 import { AdminUserScreen } from '@/components/screens/AdminUserScreen';
+import { ReconLeadScreen } from '@/components/screens/ReconLeadScreen';
 
 const Index = () => {
   const [activeRole, setActiveRole] = useState<UserRole>('ops');
@@ -17,6 +18,8 @@ const Index = () => {
         return <OpsUserScreen />;
       case 'admin':
         return <AdminUserScreen />;
+      case 'recon_lead':
+        return <ReconLeadScreen />;
       default:
         return <OpsUserScreen />;
     }
