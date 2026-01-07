@@ -6,13 +6,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 
-// Mock data for Recon Lead dashboard
-const teamMembers = [
-  { id: 1, name: "Sarah Johnson", role: "Senior Analyst", assigned: 12, resolved: 8, pending: 4, avgResolutionTime: "2.3h" },
-  { id: 2, name: "Mike Chen", role: "Analyst", assigned: 18, resolved: 15, pending: 3, avgResolutionTime: "1.8h" },
-  { id: 3, name: "Emily Davis", role: "Senior Analyst", assigned: 10, resolved: 10, pending: 0, avgResolutionTime: "2.1h" },
-  { id: 4, name: "James Wilson", role: "Analyst", assigned: 15, resolved: 11, pending: 4, avgResolutionTime: "2.5h" },
-  { id: 5, name: "Lisa Brown", role: "Junior Analyst", assigned: 8, resolved: 5, pending: 3, avgResolutionTime: "3.2h" },
+// Mock data for Recon Lead dashboard - using the 4 teams
+const teams = [
+  { id: 1, teamName: "Euroclear settlement team", assigned: 18, resolved: 15, pending: 3, avgResolutionTime: "2.1h" },
+  { id: 2, teamName: "Crest settlement team", assigned: 12, resolved: 8, pending: 4, avgResolutionTime: "2.5h" },
+  { id: 3, teamName: "Clearstream settlement team", assigned: 15, resolved: 12, pending: 3, avgResolutionTime: "1.9h" },
+  { id: 4, teamName: "Domestic settlement team", assigned: 10, resolved: 9, pending: 1, avgResolutionTime: "2.3h" },
 ];
 
 const exceptionsByCategory = [
@@ -25,22 +24,22 @@ const exceptionsByCategory = [
 ];
 
 const recentActivity = [
-  { id: 1, action: "Case #1234 resolved", user: "Sarah Johnson", time: "5 min ago", type: "resolved" },
-  { id: 2, action: "Case #1235 escalated", user: "Mike Chen", time: "12 min ago", type: "escalated" },
-  { id: 3, action: "Case #1236 assigned", user: "Emily Davis", time: "25 min ago", type: "assigned" },
-  { id: 4, action: "Case #1237 resolved", user: "James Wilson", time: "32 min ago", type: "resolved" },
-  { id: 5, action: "Case #1238 under review", user: "Lisa Brown", time: "45 min ago", type: "review" },
+  { id: 1, action: "Case #1234 resolved", user: "Euroclear settlement team", time: "5 min ago", type: "resolved" },
+  { id: 2, action: "Case #1235 escalated", user: "Crest settlement team", time: "12 min ago", type: "escalated" },
+  { id: 3, action: "Case #1236 assigned", user: "Clearstream settlement team", time: "25 min ago", type: "assigned" },
+  { id: 4, action: "Case #1237 resolved", user: "Domestic settlement team", time: "32 min ago", type: "resolved" },
+  { id: 5, action: "Case #1238 under review", user: "Euroclear settlement team", time: "45 min ago", type: "review" },
 ];
 
 export function ReconLeadScreen() {
   const stats = useMemo(() => {
-    const totalAssigned = teamMembers.reduce((sum, m) => sum + m.assigned, 0);
-    const totalResolved = teamMembers.reduce((sum, m) => sum + m.resolved, 0);
-    const totalPending = teamMembers.reduce((sum, m) => sum + m.pending, 0);
+    const totalAssigned = teams.reduce((sum, t) => sum + t.assigned, 0);
+    const totalResolved = teams.reduce((sum, t) => sum + t.resolved, 0);
+    const totalPending = teams.reduce((sum, t) => sum + t.pending, 0);
     const resolutionRate = Math.round((totalResolved / totalAssigned) * 100);
     
     return {
-      totalTeamMembers: teamMembers.length,
+      totalTeams: teams.length,
       totalAssigned,
       totalResolved,
       totalPending,
@@ -61,11 +60,11 @@ export function ReconLeadScreen() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card className="glass-card">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Team Members</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Teams</CardTitle>
             <Users className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold font-mono text-foreground">{stats.totalTeamMembers}</div>
+            <div className="text-3xl font-bold font-mono text-foreground">{stats.totalTeams}</div>
           </CardContent>
         </Card>
 
@@ -122,8 +121,7 @@ export function ReconLeadScreen() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Role</TableHead>
+                    <TableHead>Team Name</TableHead>
                     <TableHead className="text-center">Assigned</TableHead>
                     <TableHead className="text-center">Resolved</TableHead>
                     <TableHead className="text-center">Pending</TableHead>
@@ -132,22 +130,21 @@ export function ReconLeadScreen() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {teamMembers.map((member) => {
-                    const progress = Math.round((member.resolved / member.assigned) * 100);
+                  {teams.map((team) => {
+                    const progress = Math.round((team.resolved / team.assigned) * 100);
                     return (
-                      <TableRow key={member.id}>
-                        <TableCell className="font-medium">{member.name}</TableCell>
-                        <TableCell className="text-muted-foreground">{member.role}</TableCell>
-                        <TableCell className="text-center font-mono">{member.assigned}</TableCell>
-                        <TableCell className="text-center font-mono text-success">{member.resolved}</TableCell>
-                        <TableCell className="text-center font-mono text-warning">{member.pending}</TableCell>
+                      <TableRow key={team.id}>
+                        <TableCell className="font-medium">{team.teamName}</TableCell>
+                        <TableCell className="text-center font-mono">{team.assigned}</TableCell>
+                        <TableCell className="text-center font-mono text-success">{team.resolved}</TableCell>
+                        <TableCell className="text-center font-mono text-warning">{team.pending}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Progress value={progress} className="h-2 w-16" />
                             <span className="text-xs text-muted-foreground">{progress}%</span>
                           </div>
                         </TableCell>
-                        <TableCell className="font-mono text-muted-foreground">{member.avgResolutionTime}</TableCell>
+                        <TableCell className="font-mono text-muted-foreground">{team.avgResolutionTime}</TableCell>
                       </TableRow>
                     );
                   })}
