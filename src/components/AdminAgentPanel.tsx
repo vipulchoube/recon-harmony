@@ -30,10 +30,43 @@ import {
 
 interface AdminAgentPanelProps {
   state: AgentState;
+  ledgerData?: string;
 }
 
-export function AdminAgentPanel({ state }: AdminAgentPanelProps) {
+// Helper function to parse CSV and infer schema from ledger data
+function parseLedgerSchema(csvData: string): { columnName: string; inferredType: string }[] {
+  if (!csvData) return [];
+  
+  const lines = csvData.trim().split('\n');
+  if (lines.length < 2) return [];
+  
+  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+  const firstDataRow = lines[1].split(',').map(v => v.trim().replace(/"/g, ''));
+  
+  return headers.map((header, index) => {
+    const sampleValue = firstDataRow[index] || '';
+    let inferredType = 'STRING';
+    
+    // Infer type from sample value
+    if (/^\d{1,2}[-\/]\w{3}[-\/]?\d{0,4}$/.test(sampleValue) || /^\d{4}-\d{2}-\d{2}$/.test(sampleValue)) {
+      inferredType = 'DATE';
+    } else if (/^-?\d+\.\d+$/.test(sampleValue)) {
+      inferredType = 'DECIMAL';
+    } else if (/^-?\d+$/.test(sampleValue)) {
+      inferredType = 'INTEGER';
+    } else if (sampleValue.toLowerCase() === 'true' || sampleValue.toLowerCase() === 'false') {
+      inferredType = 'BOOLEAN';
+    }
+    
+    return { columnName: header, inferredType };
+  });
+}
+
+export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
   const { currentStep, isAnalyzing, dataQuality, schemaAnalysis, etlScript } = state;
+  
+  // Parse ledger schema from the uploaded ledger data
+  const ledgerSchema = parseLedgerSchema(ledgerData || '');
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -604,26 +637,32 @@ export function AdminAgentPanel({ state }: AdminAgentPanelProps) {
                 Ledger Schema Preview
               </h4>
               <ScrollArea className="h-48">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-foreground text-xs">Column Name</TableHead>
-                      <TableHead className="text-foreground text-xs">Data Type</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {schemaAnalysis.ledgerSchema?.map((col, i) => (
-                      <TableRow key={i}>
-                        <TableCell className="font-mono text-xs text-primary py-1">
-                          {col.columnName}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs text-muted-foreground py-1">
-                          {col.inferredType}
-                        </TableCell>
+                {ledgerSchema.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-foreground text-xs">Column Name</TableHead>
+                        <TableHead className="text-foreground text-xs">Data Type</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {ledgerSchema.map((col, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="font-mono text-xs text-primary py-1">
+                            {col.columnName}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs text-muted-foreground py-1">
+                            {col.inferredType}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Upload a ledger file to see its schema
+                  </p>
+                )}
               </ScrollArea>
             </div>
 
