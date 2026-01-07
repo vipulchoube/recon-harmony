@@ -54,10 +54,7 @@ export function RoleSelector({ activeRole, onRoleChange }: RoleSelectorProps) {
             >
               <div className="flex items-center gap-2">
                 <Icon className="h-4 w-4" />
-                <div>
-                  <p className="font-medium">{config.label}</p>
-                  <p className="text-xs text-muted-foreground">{config.description}</p>
-                </div>
+                <p className="font-medium">{config.label}</p>
               </div>
             </SelectItem>
           );
