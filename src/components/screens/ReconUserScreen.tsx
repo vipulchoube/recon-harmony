@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { BarChart3, CheckCircle2, XCircle, FileSpreadsheet, AlertTriangle, Play, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,14 @@ import { useRecon } from "@/context/ReconContext";
 import { ReconciliationDashboard } from "@/components/ReconciliationDashboard";
 import { useReconciliation } from "@/hooks/useReconciliation";
 import { computePreReconciliationStats, getOpenExceptionRecordsCSV, sampleLedgerData, sampleStatementData } from "@/data/sampleReconciliationData";
+import type { ExceptionCode } from "@/types/recon";
+
+const KNOWN_EXCEPTION_CODES = new Set<ExceptionCode>(['101', '102', '103', '104', '105', '106']);
+
+function normalizeExceptionCode(code?: string | null): ExceptionCode {
+  if (!code) return 'OTHER';
+  return (KNOWN_EXCEPTION_CODES.has(code as ExceptionCode) ? code : 'OTHER') as ExceptionCode;
+}
 
 export function ReconUserScreen() {
   const { reconciliationResult, setReconciliationResult, ledgerData, statementData, setLedgerData, setStatementData } = useRecon();
@@ -22,24 +30,22 @@ export function ReconUserScreen() {
 
   // Determine which stats to show based on whether AI reconciliation has run
   const hasAIReconciliation = !!reconciliationResult;
-  
+
   // IMPORTANT: First 3 stats (total, auto-matched, open exceptions) remain constant
   // Only AI-identified exceptions updates after reconciliation
   const displayTotalRecords = preReconStats.totalRecords;
   const displayAutoMatched = preReconStats.autoMatched;
   const displayOpenExceptions = preReconStats.openExceptions;
-  
+
   // AI-identified exceptions is 0 before reconciliation, then count only 101-106 exceptions
-  const aiIdentifiedExceptions = hasAIReconciliation 
-    ? (reconciliationResult?.exceptions?.records?.filter(r => 
-        ['101', '102', '103', '104', '105', '106'].includes(r.exception_code)
-      )?.length || 0)
+  const aiIdentifiedExceptions = hasAIReconciliation
+    ? (reconciliationResult?.exceptions?.records?.filter(r => KNOWN_EXCEPTION_CODES.has(r.exception_code))?.length || 0)
     : 0;
 
   const handleStartReconciliation = async () => {
     // Get only the open exception records for AI reconciliation
     const { ledgerCSV, statementCSV } = getOpenExceptionRecordsCSV();
-    
+
     // Set sample data if not already set
     if (!ledgerData) {
       setLedgerData(sampleLedgerData);
@@ -47,16 +53,31 @@ export function ReconUserScreen() {
     if (!statementData) {
       setStatementData(sampleStatementData);
     }
-    
+
     // Run reconciliation only on open exceptions
     await runReconciliation(ledgerCSV, statementCSV);
   };
 
-  // Update context when reconciliation completes
-  if (reconState.reconciliationResult && reconState.reconciliationResult !== reconciliationResult) {
-    setReconciliationResult(reconState.reconciliationResult);
-  }
+  // Update context when reconciliation completes (and normalize unknown tags to OTHER)
+  useEffect(() => {
+    const incoming = reconState.reconciliationResult;
+    if (!incoming || incoming === reconciliationResult) return;
 
+    const normalized = {
+      ...incoming,
+      exceptions: incoming.exceptions
+        ? {
+            ...incoming.exceptions,
+            records: (incoming.exceptions.records || []).map(r => ({
+              ...r,
+              exception_code: normalizeExceptionCode(r.exception_code),
+            })),
+          }
+        : incoming.exceptions,
+    };
+
+    setReconciliationResult(normalized);
+  }, [reconState.reconciliationResult, reconciliationResult, setReconciliationResult]);
   const stats = [
     {
       title: "Total Records",

@@ -91,22 +91,24 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
     return matchesExceptionCode && matchesReasonCode;
   });
   
-  // OTHER exceptions include records tagged as OTHER AND records with codes not in 101-106
+  // OTHER exceptions = everything that isn't a known exception (101-106)
   const otherExceptions = [
     ...(result.exceptions?.otherExceptions || []),
-    // Also include any records with exception_code 'OTHER' from the main records
-    ...(result.exceptions?.records?.filter(r => r.exception_code === 'OTHER') || []).map(r => ({
-      transaction_ref: r.transaction_ref,
-      ledger_index: 0,
-      settlement_index: null,
-      other_subtype: 'UNKNOWN',
-      other_description: r.reason_code || 'Exception could not be matched with known exception codes (101-106)',
-      reason_code: 'OTHER',
-      ledger_swiftref: r.ledger_swiftref,
-      settlement_swiftref: r.settlement_swiftref,
-      isin: r.isin,
-      value_date: r.value_date
-    }))
+    ...(result.exceptions?.records
+      ?.filter(r => !validExceptionCodes.includes(r.exception_code))
+      .map(r => ({
+        transaction_ref: r.transaction_ref,
+        ledger_index: 0,
+        settlement_index: null,
+        other_subtype: 'UNKNOWN',
+        other_description:
+          r.reason_code || 'Exception could not be matched with known exception codes (101-106)',
+        reason_code: 'OTHER',
+        ledger_swiftref: r.ledger_swiftref,
+        settlement_swiftref: r.settlement_swiftref,
+        isin: r.isin,
+        value_date: r.value_date,
+      })) || []),
   ];
 
   // Prepare chart data from summary
