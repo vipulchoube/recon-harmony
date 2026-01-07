@@ -56,12 +56,12 @@ export function OpsUserScreen() {
   };
 
   // Calculate stats from assigned cases
-  const openCount = assignedCases.filter(c => c.status === 'OPEN').length;
   const reviewCount = assignedCases.filter(c => c.status === 'UNDER REVIEW').length;
   const closedCount = assignedCases.filter(c => c.status === 'CLOSED').length;
+  const totalCount = reviewCount + closedCount;
 
   const stats = [
-    { title: 'Open Cases', value: openCount, icon: AlertCircle, variant: 'destructive' as const },
+    { title: 'Total Cases', value: totalCount, icon: AlertCircle, variant: 'default' as const },
     { title: 'Under Review', value: reviewCount, icon: Clock, variant: 'warning' as const },
     { title: 'Closed', value: closedCount, icon: CheckCircle2, variant: 'success' as const },
   ];
@@ -127,7 +127,7 @@ export function OpsUserScreen() {
           <Card key={stat.title} className="glass-card">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
-              <stat.icon className={`h-4 w-4 ${stat.variant === 'destructive' ? 'text-destructive' : stat.variant === 'warning' ? 'text-warning' : 'text-success'}`} />
+              <stat.icon className={`h-4 w-4 ${stat.variant === 'warning' ? 'text-warning' : stat.variant === 'success' ? 'text-success' : 'text-muted-foreground'}`} />
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold font-mono text-foreground">{stat.value}</div>
