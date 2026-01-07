@@ -44,20 +44,20 @@ export function ReconUserScreen() {
       variant: "success" as const,
     },
     {
+      title: "Open Exceptions",
+      value: unmatchedCount,
+      icon: XCircle,
+      // trend: "-5%",
+      // trendUp: false,
+      variant: "warning" as const,
+    },
+    {
       title: "AI-identified Exceptions",
       value: totalExceptions,
       icon: AlertTriangle,
       // trend: "+12%",
       // trendUp: true,
       variant: "destructive" as const,
-    },
-    {
-      title: "Unmatched",
-      value: unmatchedCount,
-      icon: XCircle,
-      // trend: "-5%",
-      // trendUp: false,
-      variant: "warning" as const,
     },
   ];
 
