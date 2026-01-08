@@ -53,13 +53,6 @@ export function ReconUserScreen() {
     return { knownCount: known, otherCount: otherTotal };
   }, [hasAIReconciliation, reconciliationResult]);
 
-  // CRITICAL: Open Exceptions ALWAYS shows the pre-reconciliation value (constant)
-  const displayOpenExceptions = preReconStats.openExceptions;
-
-  // IMPORTANT: First 2 stats (total, auto-matched) remain constant
-  const displayTotalRecords = preReconStats.totalRecords;
-  const displayAutoMatched = preReconStats.autoMatched;
-
   // AI-identified exceptions is 0 before reconciliation, then shows known (101-106) count
   const aiIdentifiedExceptions = hasAIReconciliation ? knownCount : 0;
 
@@ -96,21 +89,22 @@ export function ReconUserScreen() {
 
     setReconciliationResult(normalized);
   }, [reconState.reconciliationResult, reconciliationResult, setReconciliationResult]);
-  const stats = [
+  // Memoize stats array to ensure pre-recon values remain constant
+  const stats = useMemo(() => [
     {
       title: "Total Records",
-      value: displayTotalRecords,
+      value: preReconStats.totalRecords,
       icon: BarChart3,
     },
     {
       title: "Auto-Matched",
-      value: displayAutoMatched,
+      value: preReconStats.autoMatched,
       icon: CheckCircle2,
       variant: "success" as const,
     },
     {
       title: "Open Exceptions",
-      value: displayOpenExceptions,
+      value: preReconStats.openExceptions,
       icon: XCircle,
       variant: "warning" as const,
     },
@@ -120,7 +114,7 @@ export function ReconUserScreen() {
       icon: AlertTriangle,
       variant: "destructive" as const,
     },
-  ];
+  ], [preReconStats, aiIdentifiedExceptions]);
 
   const canStartRecon = !reconState.isReconciling;
 
