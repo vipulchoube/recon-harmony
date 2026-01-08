@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -130,12 +130,30 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
       })) || []),
   ];
 
-  // Prepare chart data from summary
-  const chartData = result.summary?.map(item => ({
-    name: `${item.exceptionCode} - ${item.exceptionDescription}`,
-    code: item.exceptionCode,
-    count: item.count,
-  })) || [];
+  // Prepare chart data from actual exception records (single source of truth)
+  const chartData = useMemo(() => {
+    const records = result.exceptions?.records || [];
+    
+    // Count known exceptions by code
+    const countByCode: Record<string, number> = {};
+    records.forEach(r => {
+      if (validExceptionCodes.includes(r.exception_code)) {
+        countByCode[r.exception_code] = (countByCode[r.exception_code] || 0) + 1;
+      }
+    });
+    
+    // Count OTHER exceptions (already computed as otherExceptions.length)
+    const otherTotal = otherExceptions.length;
+    
+    // Build chart data from EXCEPTION_DEFINITIONS to maintain consistent labels
+    return EXCEPTION_DEFINITIONS
+      .filter(def => (countByCode[def.code] || 0) > 0 || (def.code === 'OTHER' && otherTotal > 0))
+      .map(def => ({
+        name: `${def.code} - ${def.category.toUpperCase()}`,
+        code: def.code,
+        count: def.code === 'OTHER' ? otherTotal : (countByCode[def.code] || 0),
+      }));
+  }, [result.exceptions?.records, otherExceptions.length]);
 
   const chartColors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
 
