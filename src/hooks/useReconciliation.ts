@@ -4,6 +4,13 @@ import { toast } from "sonner";
 import { getOpenExceptionRecords } from "@/data/sampleReconciliationData";
 import { supabase } from "@/integrations/supabase/client";
 
+export interface ActivityLogEntry {
+  id: string;
+  timestamp: Date;
+  message: string;
+  type: "info" | "success" | "error" | "processing";
+}
+
 export interface ReconciliationState {
   isReconciling: boolean;
   reconciliationResult: ReconciliationResult | null;
@@ -14,6 +21,7 @@ export interface ReconciliationState {
     processedRecords: number;
     totalRecords: number;
   } | null;
+  activityLogs: ActivityLogEntry[];
 }
 
 export function useReconciliation() {
@@ -22,9 +30,23 @@ export function useReconciliation() {
     reconciliationResult: null,
     error: null,
     progress: null,
+    activityLogs: [],
   });
   
   const abortRef = useRef(false);
+
+  const addLog = (message: string, type: ActivityLogEntry["type"] = "info") => {
+    const entry: ActivityLogEntry = {
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: new Date(),
+      message,
+      type,
+    };
+    setState((prev) => ({
+      ...prev,
+      activityLogs: [...prev.activityLogs, entry],
+    }));
+  };
 
   const runReconciliation = useCallback(async () => {
     abortRef.current = false;
@@ -34,18 +56,24 @@ export function useReconciliation() {
       error: null,
       reconciliationResult: null,
       progress: null,
+      activityLogs: [],
     });
+
+    addLog("Starting AI reconciliation process...", "info");
 
     try {
       const { ledgerRecords, statementMap } = getOpenExceptionRecords();
       const totalRecords = ledgerRecords.length;
 
       if (totalRecords === 0) {
+        addLog("No open exceptions to process", "info");
         toast.info("No open exceptions to process");
         setState((prev) => ({ ...prev, isReconciling: false }));
         return;
       }
 
+      addLog(`Found ${totalRecords} exceptions to process`, "info");
+      addLog("Initializing AI analysis engine...", "processing");
       toast.info(`Processing ${totalRecords} exceptions with AI...`);
 
       // Initialize result structure
@@ -56,6 +84,7 @@ export function useReconciliation() {
       // Process records one at a time
       for (let i = 0; i < ledgerRecords.length; i++) {
         if (abortRef.current) {
+          addLog("Reconciliation cancelled by user", "error");
           toast.info("Reconciliation cancelled");
           break;
         }
@@ -63,6 +92,8 @@ export function useReconciliation() {
         const ledgerRecord = ledgerRecords[i];
         const transactionRef = ledgerRecord.TransactionRef;
         const statementRecord = statementMap.get(transactionRef) || null;
+
+        addLog(`Analyzing record ${i + 1}/${totalRecords}: ${transactionRef}`, "processing");
 
         // Update progress
         setState((prev) => ({
@@ -87,13 +118,16 @@ export function useReconciliation() {
 
           if (error) {
             console.error("Edge function error:", error);
+            addLog(`Error on record ${transactionRef}, using fallback analysis`, "error");
             // Use fallback on error
             const fallback = fallbackAnalysis(ledgerRecord, statementRecord);
             processResult(fallback, ledgerRecord, statementRecord, i, exceptionRecords, otherExceptions, exceptionCounts);
+            addLog(`Classified ${transactionRef} as ${fallback.exception_code} (fallback)`, "info");
           } else if (data?.record) {
             const record = data.record;
             const code = record.exception_code as ExceptionCode;
             
+            addLog(`AI classified ${transactionRef} as ${code} (confidence: ${(record.confidence * 100).toFixed(0)}%)`, "success");
             exceptionCounts.set(code, (exceptionCounts.get(code) || 0) + 1);
 
             if (code === "OTHER") {
@@ -129,9 +163,11 @@ export function useReconciliation() {
           }
         } catch (fetchError) {
           console.error("Fetch error for record", i, fetchError);
+          addLog(`Network error on record ${transactionRef}, using fallback`, "error");
           // Use fallback on network error
           const fallback = fallbackAnalysis(ledgerRecord, statementRecord);
           processResult(fallback, ledgerRecord, statementRecord, i, exceptionRecords, otherExceptions, exceptionCounts);
+          addLog(`Classified ${transactionRef} as ${fallback.exception_code} (fallback)`, "info");
         }
 
         // Update the result in real-time after each record
@@ -174,6 +210,7 @@ export function useReconciliation() {
         }
       }
 
+      addLog(`Reconciliation complete! Processed ${totalRecords} records`, "success");
       setState((prev) => ({
         ...prev,
         isReconciling: false,
@@ -183,6 +220,7 @@ export function useReconciliation() {
     } catch (error) {
       console.error("Reconciliation error:", error);
       const errorMessage = error instanceof Error ? error.message : "Reconciliation failed";
+      addLog(`Fatal error: ${errorMessage}`, "error");
       setState((prev) => ({
         ...prev,
         error: errorMessage,
@@ -200,6 +238,7 @@ export function useReconciliation() {
       reconciliationResult: null,
       error: null,
       progress: null,
+      activityLogs: [],
     });
   }, []);
 

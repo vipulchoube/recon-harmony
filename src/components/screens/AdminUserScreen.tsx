@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { useDataAgent } from "@/hooks/useDataAgent";
 import { AdminAgentPanel } from "@/components/AdminAgentPanel";
+import { AIActivityLog } from "@/components/AIActivityLog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReconciliationType, reconciliationTypeLabels, reconciliationSchemas } from "@/data/positionSchema";
 
@@ -222,6 +223,11 @@ export function AdminUserScreen() {
           </CardContent>
         </Card>
       </div>
+
+      {/* AI Activity Log - Show during and after analysis */}
+      {(agentState.isAnalyzing || agentState.activityLogs.length > 0) && (
+        <AIActivityLog logs={agentState.activityLogs} title="AI Schema Setup Activity" />
+      )}
 
       {/* Agent Analysis Panel */}
       <AdminAgentPanel state={agentState} ledgerData={ledgerData} />
