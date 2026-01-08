@@ -126,14 +126,13 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
     // Count OTHER exceptions (already computed as otherExceptions.length)
     const otherTotal = otherExceptions.length;
     
-    // Build chart data from EXCEPTION_DEFINITIONS to maintain consistent labels
-    return EXCEPTION_DEFINITIONS
-      .filter(def => (countByCode[def.code] || 0) > 0 || (def.code === 'OTHER' && otherTotal > 0))
-      .map(def => ({
-        name: `${def.code} - ${def.category.toUpperCase()}`,
-        code: def.code,
-        count: def.code === 'OTHER' ? otherTotal : (countByCode[def.code] || 0),
-      }));
+    // Build chart data - show ALL exception codes (101-106) plus OTHER
+    const allCodes = ['101', '102', '103', '104', '105', '106', 'OTHER'];
+    return allCodes.map(code => ({
+      name: code,
+      code: code,
+      count: code === 'OTHER' ? otherTotal : (countByCode[code] || 0),
+    }));
   }, [result.exceptions?.records, otherExceptions.length]);
 
   const chartColors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
@@ -449,14 +448,11 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
           <h3 className="text-lg font-semibold text-foreground mb-4">Exception Summary</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis 
                   dataKey="name" 
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                  angle={-45}
-                  textAnchor="end"
-                  height={80}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
                   interval={0}
                 />
                 <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
