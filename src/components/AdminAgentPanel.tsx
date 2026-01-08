@@ -105,6 +105,7 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
     { id: 'schema_analysis', label: 'Schema Mapping', icon: Database },
     { id: 'data_quality_check', label: 'Data Quality', icon: ShieldCheck },
     { id: 'generate_etl', label: 'ETL Script', icon: Code },
+    { id: 'automatch', label: 'Auto-match Rules', icon: Link2 },
   ];
 
   const getStepStatus = (stepId: string) => {
@@ -314,48 +315,55 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                           const needsApproval = !isApproved && mapping.matchConfidence < 0.9;
                           
                           return (
-                            <div key={i} className="p-2 rounded bg-background/50 border border-border/50 flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className="font-mono text-xs text-info bg-info/10 px-2 py-1 rounded">{mapping.statementColumn}</span>
-                                <span className="text-muted-foreground text-xs">(Statement)</span>
-                                <span className="text-muted-foreground">→</span>
-                                <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-1 rounded">{mapping.ledgerColumn}</span>
-                                <span className="text-muted-foreground text-xs">(Target)</span>
+                            <div key={i} className="p-2 rounded bg-background/50 border border-border/50">
+                              <div className="flex items-center justify-between mb-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-xs text-info bg-info/10 px-2 py-1 rounded">{mapping.statementColumn}</span>
+                                  <span className="text-muted-foreground text-xs">(Statement)</span>
+                                  <span className="text-muted-foreground">→</span>
+                                  <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-1 rounded">{mapping.ledgerColumn}</span>
+                                  <span className="text-muted-foreground text-xs">(Target)</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {isApproved ? (
+                                    <span className="text-xs px-2 py-0.5 rounded bg-success/20 text-success flex items-center gap-1">
+                                      <CheckCircle className="h-3 w-3" />
+                                      Approved (100% match)
+                                    </span>
+                                  ) : (
+                                    <span className={`text-xs px-2 py-0.5 rounded ${
+                                      displayConfidence > 0.8 
+                                        ? 'bg-success/20 text-success' 
+                                        : displayConfidence > 0.5 
+                                        ? 'bg-warning/20 text-warning'
+                                        : 'bg-destructive/20 text-destructive'
+                                    }`}>
+                                      {Math.round(displayConfidence * 100)}% match
+                                    </span>
+                                  )}
+                                  {(mapping.transformationNeeded || mapping.transformationRule) && (
+                                    <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">
+                                      Transform needed
+                                    </span>
+                                  )}
+                                  {needsApproval && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-6 px-2 text-xs"
+                                      onClick={() => handleApproveMapping(i)}
+                                    >
+                                      <CheckCircle className="h-3 w-3 mr-1" />
+                                      Approve
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                {isApproved ? (
-                                  <span className="text-xs px-2 py-0.5 rounded bg-success/20 text-success flex items-center gap-1">
-                                    <CheckCircle className="h-3 w-3" />
-                                    Approved (100% match)
-                                  </span>
-                                ) : (
-                                  <span className={`text-xs px-2 py-0.5 rounded ${
-                                    displayConfidence > 0.8 
-                                      ? 'bg-success/20 text-success' 
-                                      : displayConfidence > 0.5 
-                                      ? 'bg-warning/20 text-warning'
-                                      : 'bg-destructive/20 text-destructive'
-                                  }`}>
-                                    {Math.round(displayConfidence * 100)}% match
-                                  </span>
-                                )}
-                                {mapping.transformationNeeded && (
-                                  <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">
-                                    Transform needed
-                                  </span>
-                                )}
-                                {needsApproval && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-6 px-2 text-xs"
-                                    onClick={() => handleApproveMapping(i)}
-                                  >
-                                    <CheckCircle className="h-3 w-3 mr-1" />
-                                    Approve
-                                  </Button>
-                                )}
-                              </div>
+                              {mapping.transformationRule && (
+                                <p className="text-xs text-muted-foreground ml-2 italic">
+                                  Reason: {mapping.transformationRule}
+                                </p>
+                              )}
                             </div>
                           );
                         })}
