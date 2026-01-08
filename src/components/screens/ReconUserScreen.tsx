@@ -53,6 +53,13 @@ export function ReconUserScreen() {
     return { knownCount: known, otherCount: otherTotal };
   }, [hasAIReconciliation, reconciliationResult]);
 
+  // CRITICAL: Open Exceptions ALWAYS shows the pre-reconciliation value (constant)
+  const displayOpenExceptions = preReconStats.openExceptions;
+
+  // IMPORTANT: First 2 stats (total, auto-matched) remain constant
+  const displayTotalRecords = preReconStats.totalRecords;
+  const displayAutoMatched = preReconStats.autoMatched;
+
   // AI-identified exceptions is 0 before reconciliation, then shows known (101-106) count
   const aiIdentifiedExceptions = hasAIReconciliation ? knownCount : 0;
 
@@ -89,22 +96,21 @@ export function ReconUserScreen() {
 
     setReconciliationResult(normalized);
   }, [reconState.reconciliationResult, reconciliationResult, setReconciliationResult]);
-  // Memoize stats array to ensure pre-recon values remain constant
-  const stats = useMemo(() => [
+  const stats = [
     {
       title: "Total Records",
-      value: preReconStats.totalRecords,
+      value: displayTotalRecords,
       icon: BarChart3,
     },
     {
       title: "Auto-Matched",
-      value: preReconStats.autoMatched,
+      value: displayAutoMatched,
       icon: CheckCircle2,
       variant: "success" as const,
     },
     {
       title: "Open Exceptions",
-      value: preReconStats.openExceptions,
+      value: displayOpenExceptions,
       icon: XCircle,
       variant: "warning" as const,
     },
@@ -114,7 +120,7 @@ export function ReconUserScreen() {
       icon: AlertTriangle,
       variant: "destructive" as const,
     },
-  ], [preReconStats, aiIdentifiedExceptions]);
+  ];
 
   const canStartRecon = !reconState.isReconciling;
 
@@ -146,19 +152,16 @@ export function ReconUserScreen() {
           <CardContent className="py-4">
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  <span className="text-foreground font-medium">
-                    AI analyzing record {reconState.progress.currentBatch} of {reconState.progress.totalRecords}
-                  </span>
-                </div>
-                <span className="font-mono text-primary font-bold">
-                  {reconState.progress.processedRecords} / {reconState.progress.totalRecords}
+                <span className="text-muted-foreground">
+                  Processing batch {reconState.progress.currentBatch} of {reconState.progress.totalBatches}
+                </span>
+                <span className="font-mono text-primary">
+                  {reconState.progress.processedRecords} / {reconState.progress.totalRecords} records
                 </span>
               </div>
               <Progress value={progressPercent} className="h-2" />
               <p className="text-xs text-muted-foreground text-center">
-                {progressPercent}% complete • Processing 1 record at a time with AI analysis
+                {progressPercent}% complete
               </p>
             </div>
           </CardContent>

@@ -184,13 +184,6 @@ export function computePreReconciliationStats(): PreReconciliationStats {
     }
   });
   
-  console.log('[Pre-Recon Stats]', {
-    totalRecords,
-    autoMatched,
-    openExceptions: openExceptionRecords.length,
-    statementRecordsCount: statementRecords.length,
-  });
-
   return {
     totalRecords,
     autoMatched,

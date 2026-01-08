@@ -1,8 +1,7 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { ReconciliationResult, ExceptionCode, ExceptionRecord, OtherException } from "@/types/recon";
 import { toast } from "sonner";
 import { getOpenExceptionRecords } from "@/data/sampleReconciliationData";
-import { supabase } from "@/integrations/supabase/client";
 
 export interface ReconciliationState {
   isReconciling: boolean;
@@ -16,6 +15,65 @@ export interface ReconciliationState {
   } | null;
 }
 
+// Deterministic exception code assignment based on data patterns
+function assignExceptionCode(
+  ledgerRecord: Record<string, string>,
+  statementRecord: Record<string, string> | undefined,
+): { code: ExceptionCode; description: string } {
+  const tradeStatus = ledgerRecord.TradeStatus?.toUpperCase() || "";
+  const settlementStatus = ledgerRecord.SettlementStatus?.toUpperCase() || "";
+  const isin = ledgerRecord["Security ISIN"] || "";
+  const amount = parseInt(ledgerRecord.Amount || "0", 10);
+  const openAmount = parseInt(ledgerRecord["Open Amount"] || "0", 10);
+
+  // 101: Feed Issue - No matching statement record
+  if (!statementRecord) {
+    return { code: "101", description: "Feed Issue - No matching settlement record found in statement" };
+  }
+
+  const statementState = statementRecord["Settlement State"]?.toUpperCase() || "";
+  const manualSettlement = statementRecord.ManualSettlement?.toUpperCase() || "";
+  const ledgerBalancePool = ledgerRecord.Balance_Pool || "";
+  const statementBalancePool = statementRecord.Balance_Pool || "";
+
+  // 102: Cancelled Trade - Ledger cancelled but statement shows settled
+  if (tradeStatus === "CANCELLED" && statementState === "SETTLED") {
+    return { code: "102", description: "Cancelled Trade - Trade cancelled in ledger but settled in statement" };
+  }
+
+  // 103: Unsettled Trade - Ledger open but statement shows settled
+  if (settlementStatus === "OPEN" && statementState === "SETTLED") {
+    return { code: "103", description: "Unsettled Trade - Trade open in ledger but shows as settled in statement" };
+  }
+
+  // 104: Not Settled in Market - Manual settlement with no market settlement
+  if (manualSettlement === "Y" && statementState !== "SETTLED") {
+    return { code: "104", description: "Not Settled in Market - Manual settlement flagged but not settled in market" };
+  }
+
+  // 105: Wrong Account - Balance Pool mismatch
+  if (ledgerBalancePool && statementBalancePool && ledgerBalancePool !== statementBalancePool) {
+    return { code: "105", description: "Wrong Account - Balance Pool mismatch between ledger and statement" };
+  }
+
+  // 106: Partial Settlement
+  if (settlementStatus === "PARTIALLY SETTLED" || statementState === "PARTIALLY SETTLED") {
+    return { code: "106", description: "Partial Settlement - Trade only partially settled" };
+  }
+
+  // OTHER: Edge cases - empty ISIN, zero amounts with AMEND, amount mismatches
+  if (!isin || isin.trim() === "") {
+    return { code: "OTHER", description: "Data Quality Issue - Missing ISIN" };
+  }
+
+  if (tradeStatus === "AMEND" && (amount === 0 || openAmount !== amount)) {
+    return { code: "OTHER", description: "Amendment Issue - Amended trade with data discrepancy" };
+  }
+
+  // Fallback OTHER for any remaining edge cases
+  return { code: "OTHER", description: "Unclassified Exception - Review required" };
+}
+
 export function useReconciliation() {
   const [state, setState] = useState<ReconciliationState>({
     isReconciling: false,
@@ -23,20 +81,20 @@ export function useReconciliation() {
     error: null,
     progress: null,
   });
-  
-  const abortRef = useRef(false);
 
   const runReconciliation = useCallback(async () => {
-    abortRef.current = false;
-    
-    setState({
+    setState((prev) => ({
+      ...prev,
       isReconciling: true,
       error: null,
       reconciliationResult: null,
       progress: null,
-    });
+    }));
 
     try {
+      // Add 10 second delay to simulate processing
+      await new Promise((resolve) => setTimeout(resolve, 10000));
+
       const { ledgerRecords, statementMap } = getOpenExceptionRecords();
       const totalRecords = ledgerRecords.length;
 
@@ -46,140 +104,89 @@ export function useReconciliation() {
         return;
       }
 
-      toast.info(`Processing ${totalRecords} exceptions with AI...`);
+      toast.info(`Processing ${totalRecords} exceptions...`);
 
-      // Initialize result structure
+      // Process all records deterministically
       const exceptionRecords: ExceptionRecord[] = [];
       const otherExceptions: OtherException[] = [];
       const exceptionCounts = new Map<ExceptionCode, number>();
 
-      // Process records one at a time
-      for (let i = 0; i < ledgerRecords.length; i++) {
-        if (abortRef.current) {
-          toast.info("Reconciliation cancelled");
-          break;
-        }
-
-        const ledgerRecord = ledgerRecords[i];
+      ledgerRecords.forEach((ledgerRecord) => {
         const transactionRef = ledgerRecord.TransactionRef;
-        const statementRecord = statementMap.get(transactionRef) || null;
+        const statementRecord = statementMap.get(transactionRef);
 
-        // Update progress
-        setState((prev) => ({
-          ...prev,
-          progress: {
-            currentBatch: i + 1,
-            totalBatches: totalRecords,
-            processedRecords: i,
-            totalRecords,
-          },
-        }));
+        const { code, description } = assignExceptionCode(ledgerRecord, statementRecord);
 
-        try {
-          // Call the AI edge function
-          const { data, error } = await supabase.functions.invoke("reconcile-record", {
-            body: {
-              ledgerRecord,
-              statementRecord,
-              index: i,
-            },
+        // Update counts
+        exceptionCounts.set(code, (exceptionCounts.get(code) || 0) + 1);
+
+        if (code === "OTHER") {
+          otherExceptions.push({
+            transaction_ref: transactionRef,
+            ledger_swiftref: ledgerRecord.Swiftref || "",
+            settlement_swiftref: statementRecord?.Swiftref || "",
+            isin: ledgerRecord["Security ISIN"] || "",
+            value_date: ledgerRecord.ValueDate || "",
+            amount: parseInt(ledgerRecord.Amount || "0", 10),
+            quantity: parseInt(ledgerRecord.Quantity || "0", 10),
+            ledger_index: 0,
+            settlement_index: 0,
+            other_subtype: "DATA_QUALITY",
+            other_description: description,
+            reason_code: "OTHER",
           });
-
-          if (error) {
-            console.error("Edge function error:", error);
-            // Use fallback on error
-            const fallback = fallbackAnalysis(ledgerRecord, statementRecord);
-            processResult(fallback, ledgerRecord, statementRecord, i, exceptionRecords, otherExceptions, exceptionCounts);
-          } else if (data?.record) {
-            const record = data.record;
-            const code = record.exception_code as ExceptionCode;
-            
-            exceptionCounts.set(code, (exceptionCounts.get(code) || 0) + 1);
-
-            if (code === "OTHER") {
-              otherExceptions.push({
-                transaction_ref: record.transaction_ref,
-                ledger_swiftref: record.ledger_swiftref,
-                settlement_swiftref: record.settlement_swiftref,
-                isin: record.isin,
-                value_date: record.value_date,
-                amount: record.amount,
-                quantity: record.quantity,
-                ledger_index: i,
-                settlement_index: 0,
-                other_subtype: "AI_CLASSIFIED",
-                other_description: record.reason || "AI analysis",
-                reason_code: "OTHER",
-              });
-            } else {
-              exceptionRecords.push({
-                transaction_ref: record.transaction_ref,
-                ledger_swiftref: record.ledger_swiftref,
-                settlement_swiftref: record.settlement_swiftref,
-                isin: record.isin,
-                value_date: record.value_date,
-                amount: record.amount,
-                quantity: record.quantity,
-                exception_code: code,
-                reason_code: code,
-                match_status: "UNMATCHED",
-                confidence: record.confidence || 0.8,
-              });
-            }
-          }
-        } catch (fetchError) {
-          console.error("Fetch error for record", i, fetchError);
-          // Use fallback on network error
-          const fallback = fallbackAnalysis(ledgerRecord, statementRecord);
-          processResult(fallback, ledgerRecord, statementRecord, i, exceptionRecords, otherExceptions, exceptionCounts);
+        } else {
+          exceptionRecords.push({
+            transaction_ref: transactionRef,
+            ledger_swiftref: ledgerRecord.Swiftref || "",
+            settlement_swiftref: statementRecord?.Swiftref || null,
+            isin: ledgerRecord["Security ISIN"] || "",
+            value_date: ledgerRecord.ValueDate || "",
+            amount: parseInt(ledgerRecord.Amount || "0", 10),
+            quantity: parseInt(ledgerRecord.Quantity || "0", 10),
+            exception_code: code,
+            reason_code: code,
+            match_status: "UNMATCHED",
+            confidence: 1.0,
+          });
         }
+      });
 
-        // Update the result in real-time after each record
-        const currentResult: ReconciliationResult = {
-          summary: Array.from(exceptionCounts.entries()).map(([code, count]) => ({
-            exceptionCode: code,
-            exceptionDescription: getExceptionDescription(code),
-            count,
-          })),
-          matching: {
-            matchedCount: 0,
-            unmatchedCount: exceptionRecords.length + otherExceptions.length,
-            totalRecords: totalRecords,
-            matchedRecords: [],
-          },
-          exceptions: {
-            exceptionCounts: Array.from(exceptionCounts.entries())
-              .filter(([code]) => code !== "OTHER")
-              .map(([code, count]) => ({ code, count })),
-            records: [...exceptionRecords],
-            otherExceptions: [...otherExceptions],
-          },
-          expectedOutput: [],
-        };
-
-        setState((prev) => ({
-          ...prev,
-          reconciliationResult: currentResult,
-          progress: {
-            currentBatch: i + 1,
-            totalBatches: totalRecords,
-            processedRecords: i + 1,
-            totalRecords,
-          },
-        }));
-
-        // Small delay between requests to avoid rate limiting
-        if (i < ledgerRecords.length - 1) {
-          await new Promise((resolve) => setTimeout(resolve, 300));
-        }
-      }
+      const result: ReconciliationResult = {
+        summary: Array.from(exceptionCounts.entries()).map(([code, count]) => ({
+          exceptionCode: code,
+          exceptionDescription: getExceptionDescription(code),
+          count,
+        })),
+        matching: {
+          matchedCount: 0,
+          unmatchedCount: totalRecords,
+          totalRecords: totalRecords,
+          matchedRecords: [],
+        },
+        exceptions: {
+          exceptionCounts: Array.from(exceptionCounts.entries())
+            .filter(([code]) => code !== "OTHER")
+            .map(([code, count]) => ({ code, count })),
+          records: exceptionRecords,
+          otherExceptions: otherExceptions,
+        },
+        expectedOutput: [],
+      };
 
       setState((prev) => ({
         ...prev,
+        reconciliationResult: result,
         isReconciling: false,
+        progress: {
+          currentBatch: 1,
+          totalBatches: 1,
+          processedRecords: totalRecords,
+          totalRecords,
+        },
       }));
 
-      toast.success(`Reconciliation completed! Processed ${totalRecords} records with AI.`);
+      toast.success(`Reconciliation completed! Processed ${totalRecords} records.`);
     } catch (error) {
       console.error("Reconciliation error:", error);
       const errorMessage = error instanceof Error ? error.message : "Reconciliation failed";
@@ -194,7 +201,6 @@ export function useReconciliation() {
   }, []);
 
   const reset = useCallback(() => {
-    abortRef.current = true;
     setState({
       isReconciling: false,
       reconciliationResult: null,
@@ -204,89 +210,6 @@ export function useReconciliation() {
   }, []);
 
   return { state, runReconciliation, reset };
-}
-
-function processResult(
-  result: { exception_code: string; reason: string; confidence: number },
-  ledgerRecord: Record<string, string>,
-  statementRecord: Record<string, string> | null,
-  index: number,
-  exceptionRecords: ExceptionRecord[],
-  otherExceptions: OtherException[],
-  exceptionCounts: Map<ExceptionCode, number>
-) {
-  const code = result.exception_code as ExceptionCode;
-  exceptionCounts.set(code, (exceptionCounts.get(code) || 0) + 1);
-
-  if (code === "OTHER") {
-    otherExceptions.push({
-      transaction_ref: ledgerRecord.TransactionRef,
-      ledger_swiftref: ledgerRecord.Swiftref || "",
-      settlement_swiftref: statementRecord?.Swiftref || "",
-      isin: ledgerRecord["Security ISIN"] || "",
-      value_date: ledgerRecord.ValueDate || "",
-      amount: parseInt(ledgerRecord.Amount || "0", 10),
-      quantity: parseInt(ledgerRecord.Quantity || "0", 10),
-      ledger_index: index,
-      settlement_index: 0,
-      other_subtype: "FALLBACK",
-      other_description: result.reason,
-      reason_code: "OTHER",
-    });
-  } else {
-    exceptionRecords.push({
-      transaction_ref: ledgerRecord.TransactionRef,
-      ledger_swiftref: ledgerRecord.Swiftref || "",
-      settlement_swiftref: statementRecord?.Swiftref || null,
-      isin: ledgerRecord["Security ISIN"] || "",
-      value_date: ledgerRecord.ValueDate || "",
-      amount: parseInt(ledgerRecord.Amount || "0", 10),
-      quantity: parseInt(ledgerRecord.Quantity || "0", 10),
-      exception_code: code,
-      reason_code: code,
-      match_status: "UNMATCHED",
-      confidence: result.confidence,
-    });
-  }
-}
-
-function fallbackAnalysis(
-  ledgerRecord: Record<string, string>,
-  statementRecord: Record<string, string> | null
-): { exception_code: string; reason: string; confidence: number } {
-  const tradeStatus = ledgerRecord.TradeStatus?.toUpperCase() || "";
-  const settlementStatus = ledgerRecord.SettlementStatus?.toUpperCase() || "";
-
-  if (!statementRecord) {
-    return { exception_code: "101", reason: "No matching settlement record found", confidence: 1.0 };
-  }
-
-  const statementState = statementRecord["Settlement State"]?.toUpperCase() || "";
-  const manualSettlement = statementRecord.ManualSettlement?.toUpperCase() || "";
-  const ledgerBalancePool = ledgerRecord.Balance_Pool || "";
-  const statementBalancePool = statementRecord.Balance_Pool || "";
-
-  if (tradeStatus === "CANCELLED" && statementState === "SETTLED") {
-    return { exception_code: "102", reason: "Trade cancelled in ledger but settled in statement", confidence: 1.0 };
-  }
-
-  if (settlementStatus === "OPEN" && statementState === "SETTLED") {
-    return { exception_code: "103", reason: "Trade open in ledger but settled in statement", confidence: 1.0 };
-  }
-
-  if (manualSettlement === "Y" && statementState !== "SETTLED") {
-    return { exception_code: "104", reason: "Manual settlement flagged but not settled in market", confidence: 1.0 };
-  }
-
-  if (ledgerBalancePool && statementBalancePool && ledgerBalancePool !== statementBalancePool) {
-    return { exception_code: "105", reason: "Balance Pool mismatch", confidence: 1.0 };
-  }
-
-  if (settlementStatus === "PARTIALLY SETTLED" || statementState === "PARTIALLY SETTLED") {
-    return { exception_code: "106", reason: "Partial settlement detected", confidence: 1.0 };
-  }
-
-  return { exception_code: "OTHER", reason: "Unclassified exception", confidence: 0.5 };
 }
 
 function getExceptionDescription(code: ExceptionCode): string {
