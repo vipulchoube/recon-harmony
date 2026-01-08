@@ -9,6 +9,7 @@ import { useRecon } from "@/context/ReconContext";
 import { ReconciliationDashboard } from "@/components/ReconciliationDashboard";
 import { useReconciliation } from "@/hooks/useReconciliation";
 import { computePreReconciliationStats, sampleLedgerData, sampleStatementData } from "@/data/sampleReconciliationData";
+import { AIActivityLog } from "@/components/AIActivityLog";
 import type { ExceptionCode } from "@/types/recon";
 
 const KNOWN_EXCEPTION_CODES = new Set<ExceptionCode>(['101', '102', '103', '104', '105', '106']);
@@ -182,11 +183,16 @@ export function ReconUserScreen() {
         ))}
       </div>
 
-      {/* Reconciliation Results - Show when AI reconciliation has run */}
-      {reconciliationResult && <ReconciliationDashboard result={reconciliationResult} />}
+      {/* AI Activity Log - Show during and after reconciliation */}
+      {(reconState.isReconciling || reconState.activityLogs.length > 0) && (
+        <AIActivityLog logs={reconState.activityLogs} title="AI Reconciliation Activity" />
+      )}
 
-      {/* Show Open Exceptions Table before AI reconciliation */}
-      {!reconciliationResult && preReconStats.openExceptionRecords.length > 0 && (
+      {/* Reconciliation Results - Show only when AI reconciliation has completed (not during) */}
+      {reconciliationResult && !reconState.isReconciling && <ReconciliationDashboard result={reconciliationResult} />}
+
+      {/* Show Open Exceptions Table before AI reconciliation (not during) */}
+      {!reconciliationResult && !reconState.isReconciling && preReconStats.openExceptionRecords.length > 0 && (
         <Card className="glass-card">
           <CardHeader>
             <CardTitle className="text-lg">Open Exceptions</CardTitle>
@@ -226,8 +232,8 @@ export function ReconUserScreen() {
         </Card>
       )}
 
-      {/* Placeholder when no data at all */}
-      {!reconciliationResult && preReconStats.openExceptionRecords.length === 0 && (
+      {/* Placeholder when no data at all (not during reconciliation) */}
+      {!reconciliationResult && !reconState.isReconciling && preReconStats.openExceptionRecords.length === 0 && (
         <Card className="glass-card">
           <CardContent className="py-12">
             <div className="text-center text-muted-foreground">
