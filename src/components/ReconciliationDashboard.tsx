@@ -108,27 +108,8 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
     return matchesExceptionCode && matchesReasonCode;
   });
   
-  // OTHER exceptions = everything that isn't a known exception (101-106)
-  const otherExceptions = [
-    ...(result.exceptions?.otherExceptions || []),
-    ...(result.exceptions?.records
-      ?.filter(r => !validExceptionCodes.includes(r.exception_code))
-      .map(r => ({
-        transaction_ref: r.transaction_ref,
-        ledger_index: 0,
-        settlement_index: null,
-        other_subtype: 'UNKNOWN',
-        other_description:
-          r.reason_code || 'Exception could not be matched with known exception codes (101-106)',
-        reason_code: 'OTHER',
-        ledger_swiftref: r.ledger_swiftref,
-        settlement_swiftref: r.settlement_swiftref,
-        isin: r.isin,
-        value_date: r.value_date,
-        amount: r.amount,
-        quantity: r.quantity,
-      })) || []),
-  ];
+  // OTHER exceptions = ONLY from the dedicated otherExceptions array (no duplication from records)
+  const otherExceptions = result.exceptions?.otherExceptions || [];
 
   // Prepare chart data from actual exception records (single source of truth)
   const chartData = useMemo(() => {
