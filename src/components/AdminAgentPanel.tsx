@@ -105,15 +105,18 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
     { id: 'schema_analysis', label: 'Schema Mapping', icon: Database },
     { id: 'data_quality_check', label: 'Data Quality', icon: ShieldCheck },
     { id: 'generate_etl', label: 'ETL Script', icon: Code },
+    { id: 'auto_match', label: 'Auto-match Rules', icon: Link2 },
   ];
 
   const getStepStatus = (stepId: string) => {
-    const stepOrder = ['data_quality', 'schema_analysis', 'data_quality_check', 'generate_etl', 'complete'];
+    const stepOrder = ['data_quality', 'schema_analysis', 'data_quality_check', 'generate_etl', 'auto_match', 'complete'];
     const currentIndex = stepOrder.indexOf(currentStep);
     const stepIndex = stepOrder.indexOf(stepId);
     
     if (currentStep === stepId && isAnalyzing) return 'active';
-    if (stepIndex < currentIndex || currentStep === 'complete') return 'complete';
+    if (stepIndex < currentIndex) return 'complete';
+    // Auto-match is complete only when ETL is complete
+    if (stepId === 'auto_match' && etlScript) return 'complete';
     return 'pending';
   };
 
@@ -313,49 +316,74 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                           const displayConfidence = isApproved ? 1 : mapping.matchConfidence;
                           const needsApproval = !isApproved && mapping.matchConfidence < 0.9;
                           
+                          // Check for datatype mismatch between statement and ledger schema
+                          const statementCol = schemaAnalysis.statementSchema?.find(
+                            s => s.columnName.toLowerCase() === mapping.statementColumn.toLowerCase()
+                          );
+                          const ledgerCol = schemaAnalysis.ledgerSchema?.find(
+                            t => t.columnName?.toLowerCase() === mapping.ledgerColumn.toLowerCase()
+                          );
+                          const hasTypeMismatch = statementCol && ledgerCol && 
+                            statementCol.inferredType?.toUpperCase() !== ledgerCol.inferredType?.toUpperCase();
+                          const showTransformNeeded = mapping.transformationNeeded || hasTypeMismatch;
+                          
+                          // Generate reasoning for transform
+                          let transformReason = mapping.transformationRule || '';
+                          if (hasTypeMismatch && !transformReason) {
+                            transformReason = `Statement field is ${statementCol?.inferredType || 'unknown'} but Target expects ${ledgerCol?.inferredType || 'unknown'}`;
+                          }
+                          
                           return (
-                            <div key={i} className="p-2 rounded bg-background/50 border border-border/50 flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className="font-mono text-xs text-info bg-info/10 px-2 py-1 rounded">{mapping.statementColumn}</span>
-                                <span className="text-muted-foreground text-xs">(Statement)</span>
-                                <span className="text-muted-foreground">→</span>
-                                <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-1 rounded">{mapping.ledgerColumn}</span>
-                                <span className="text-muted-foreground text-xs">(Target)</span>
+                            <div key={i} className="p-2 rounded bg-background/50 border border-border/50">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-xs text-info bg-info/10 px-2 py-1 rounded">{mapping.statementColumn}</span>
+                                  <span className="text-muted-foreground text-xs">(Statement)</span>
+                                  <span className="text-muted-foreground">→</span>
+                                  <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-1 rounded">{mapping.ledgerColumn}</span>
+                                  <span className="text-muted-foreground text-xs">(Target)</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {isApproved ? (
+                                    <span className="text-xs px-2 py-0.5 rounded bg-success/20 text-success flex items-center gap-1">
+                                      <CheckCircle className="h-3 w-3" />
+                                      Approved (100% match)
+                                    </span>
+                                  ) : (
+                                    <span className={`text-xs px-2 py-0.5 rounded ${
+                                      displayConfidence > 0.8 
+                                        ? 'bg-success/20 text-success' 
+                                        : displayConfidence > 0.5 
+                                        ? 'bg-warning/20 text-warning'
+                                        : 'bg-destructive/20 text-destructive'
+                                    }`}>
+                                      {Math.round(displayConfidence * 100)}% match
+                                    </span>
+                                  )}
+                                  {showTransformNeeded && (
+                                    <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">
+                                      Transform needed
+                                    </span>
+                                  )}
+                                  {needsApproval && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-6 px-2 text-xs"
+                                      onClick={() => handleApproveMapping(i)}
+                                    >
+                                      <CheckCircle className="h-3 w-3 mr-1" />
+                                      Approve
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                {isApproved ? (
-                                  <span className="text-xs px-2 py-0.5 rounded bg-success/20 text-success flex items-center gap-1">
-                                    <CheckCircle className="h-3 w-3" />
-                                    Approved (100% match)
-                                  </span>
-                                ) : (
-                                  <span className={`text-xs px-2 py-0.5 rounded ${
-                                    displayConfidence > 0.8 
-                                      ? 'bg-success/20 text-success' 
-                                      : displayConfidence > 0.5 
-                                      ? 'bg-warning/20 text-warning'
-                                      : 'bg-destructive/20 text-destructive'
-                                  }`}>
-                                    {Math.round(displayConfidence * 100)}% match
-                                  </span>
-                                )}
-                                {mapping.transformationNeeded && (
-                                  <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">
-                                    Transform needed
-                                  </span>
-                                )}
-                                {needsApproval && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-6 px-2 text-xs"
-                                    onClick={() => handleApproveMapping(i)}
-                                  >
-                                    <CheckCircle className="h-3 w-3 mr-1" />
-                                    Approve
-                                  </Button>
-                                )}
-                              </div>
+                              {showTransformNeeded && transformReason && (
+                                <div className="mt-2 text-xs text-muted-foreground bg-muted/30 px-2 py-1 rounded">
+                                  <span className="text-primary font-medium">Reason: </span>
+                                  {transformReason}
+                                </div>
+                              )}
                             </div>
                           );
                         })}
@@ -508,7 +536,7 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                   <div className="flex items-center justify-between">
                     <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
                       <Code className="h-4 w-4 text-primary" />
-                      Oracle PL/SQL ETL Script
+                      Oracle PL/SQL ETL Script (Ledger ↔ Statement)
                     </h4>
                     <div className="flex gap-2">
                       <Button 
