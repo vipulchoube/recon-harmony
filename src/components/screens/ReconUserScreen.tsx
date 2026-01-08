@@ -93,8 +93,13 @@ export function ReconUserScreen() {
   const aiIdentifiedExceptions = hasAIReconciliation ? knownCount : 0;
 
   const handleStartReconciliation = async () => {
-    // Get only the open exception records for AI reconciliation
-    const { ledgerCSV, statementCSV } = getOpenExceptionRecordsCSV();
+    // Get only the open exception records for AI reconciliation (limited to prevent truncation)
+    const { ledgerCSV, statementCSV, totalExceptions, sentExceptions } = getOpenExceptionRecordsCSV();
+
+    // Log if we're only sending a subset
+    if (sentExceptions < totalExceptions) {
+      console.log(`Sending ${sentExceptions} of ${totalExceptions} exceptions to AI (limited to prevent request size issues)`);
+    }
 
     // Set sample data if not already set
     if (!ledgerData) {
