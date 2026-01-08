@@ -125,87 +125,6 @@ export function ReconLeadScreen() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Main Content Grid */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Team Performance Table */}
-        <Card className="glass-card lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-lg">Team Performance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[300px]">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Team Name</TableHead>
-                    <TableHead className="text-center">Assigned</TableHead>
-                    <TableHead className="text-center">Resolved</TableHead>
-                    <TableHead className="text-center">Pending</TableHead>
-                    <TableHead>Progress</TableHead>
-                    <TableHead>Avg Time</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {teams.map((team) => {
-                    const progress = Math.round((team.resolved / team.assigned) * 100);
-                    return (
-                      <TableRow key={team.id}>
-                        <TableCell className="font-medium">{team.teamName}</TableCell>
-                        <TableCell className="text-center font-mono">{team.assigned}</TableCell>
-                        <TableCell className="text-center font-mono text-success">{team.resolved}</TableCell>
-                        <TableCell className="text-center font-mono text-warning">{team.pending}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Progress value={progress} className="h-2 w-16" />
-                            <span className="text-xs text-muted-foreground">{progress}%</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-mono text-muted-foreground">{team.avgResolutionTime} min</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-          </CardContent>
-        </Card>
-
-        {/* Recent Activity */}
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle className="text-lg">Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[300px]">
-              <div className="space-y-4">
-                {recentActivity.map((activity) => (
-                  <div key={activity.id} className="flex items-start gap-3 pb-3 border-b border-border last:border-0">
-                    <div
-                      className={`mt-1 h-2 w-2 rounded-full ${
-                        activity.type === "resolved"
-                          ? "bg-success"
-                          : activity.type === "escalated"
-                            ? "bg-destructive"
-                            : activity.type === "assigned"
-                              ? "bg-primary"
-                              : "bg-warning"
-                      }`}
-                    />
-                    <div className="flex-1 space-y-1">
-                      <p className="text-sm font-medium">{activity.action}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {activity.user} • {activity.time}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Aging Dashboard and Auto-Match Trend */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Case Aging Dashboard */}
@@ -321,5 +240,85 @@ export function ReconLeadScreen() {
         </CardContent>
       </Card>
     </div>
+    
+      {/* Main Content Grid */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Team Performance Table */}
+        <Card className="glass-card lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-lg">Team Performance</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-[300px]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Team Name</TableHead>
+                    <TableHead className="text-center">Assigned</TableHead>
+                    <TableHead className="text-center">Resolved</TableHead>
+                    <TableHead className="text-center">Pending</TableHead>
+                    <TableHead>Progress</TableHead>
+                    <TableHead>Avg Time</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {teams.map((team) => {
+                    const progress = Math.round((team.resolved / team.assigned) * 100);
+                    return (
+                      <TableRow key={team.id}>
+                        <TableCell className="font-medium">{team.teamName}</TableCell>
+                        <TableCell className="text-center font-mono">{team.assigned}</TableCell>
+                        <TableCell className="text-center font-mono text-success">{team.resolved}</TableCell>
+                        <TableCell className="text-center font-mono text-warning">{team.pending}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Progress value={progress} className="h-2 w-16" />
+                            <span className="text-xs text-muted-foreground">{progress}%</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-mono text-muted-foreground">{team.avgResolutionTime} min</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+
+        {/* Recent Activity */}
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="text-lg">Recent Activity</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-[300px]">
+              <div className="space-y-4">
+                {recentActivity.map((activity) => (
+                  <div key={activity.id} className="flex items-start gap-3 pb-3 border-b border-border last:border-0">
+                    <div
+                      className={`mt-1 h-2 w-2 rounded-full ${
+                        activity.type === "resolved"
+                          ? "bg-success"
+                          : activity.type === "escalated"
+                            ? "bg-destructive"
+                            : activity.type === "assigned"
+                              ? "bg-primary"
+                              : "bg-warning"
+                      }`}
+                    />
+                    <div className="flex-1 space-y-1">
+                      <p className="text-sm font-medium">{activity.action}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {activity.user} • {activity.time}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      </div>
   );
 }
