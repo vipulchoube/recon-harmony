@@ -698,7 +698,7 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Reason Code</p>
-                    <p className="text-foreground">{reasonCodeDescriptions[selectedCase.exception_code] || selectedCase.reason_code}</p>
+                    <p className="text-foreground">{selectedCase.reason_code}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Transaction Ref</p>

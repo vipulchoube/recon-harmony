@@ -50,17 +50,6 @@ export function OpsUserScreen() {
     return matchesAssignTo && matchesExceptionCode && matchesReasonCode;
   });
 
-  // Reason code descriptions matching ReconciliationDashboard
-  const reasonCodeDescriptions: Record<string, string> = {
-    '101': 'Feed Issue',
-    '102': 'Cancelled Trade',
-    '103': 'Unsettled Trade',
-    '104': 'Not Settled in Market but Closed Internally',
-    '105': 'Booked to Wrong Account',
-    '106': 'Partial Settlement',
-    'OTHER': 'Other Exception',
-  };
-
   const getExceptionDescription = (code: ExceptionCode): string => {
     const def = EXCEPTION_DEFINITIONS.find(d => d.code === code);
     return def?.category || 'OTHER';
@@ -235,7 +224,7 @@ export function OpsUserScreen() {
                         </button>
                       </TableCell>
                       <TableCell className="font-mono text-primary">{assignedCase.exceptionCode}</TableCell>
-                      <TableCell>{reasonCodeDescriptions[assignedCase.exceptionCode] || assignedCase.reasonCode}</TableCell>
+                      <TableCell>{assignedCase.reasonCode}</TableCell>
                       <TableCell className="font-mono">{assignedCase.transactionRef}</TableCell>
                       <TableCell className="font-mono text-info">{assignedCase.ledgerSwiftRef}</TableCell>
                       <TableCell className="font-mono text-info">{assignedCase.settlementSwiftRef || 'None'}</TableCell>
@@ -274,7 +263,7 @@ export function OpsUserScreen() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Reason Code</p>
-                  <p>{reasonCodeDescriptions[selectedCase.exceptionCode] || selectedCase.reasonCode}</p>
+                  <p>{selectedCase.reasonCode}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Transaction Ref</p>
