@@ -525,7 +525,15 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
 
                   <ScrollArea className="h-48">
                     <div className="space-y-2">
-                      {dataQuality.checks?.map((check, i) => (
+                      {dataQuality.checks
+                        ?.slice()
+                        .sort((a, b) => {
+                          // Sort: warnings/errors first, then passed
+                          if (a.passed && !b.passed) return 1;
+                          if (!a.passed && b.passed) return -1;
+                          return 0;
+                        })
+                        .map((check, i) => (
                         <div
                           key={check.id || i}
                           className={`p-3 rounded-lg border ${
