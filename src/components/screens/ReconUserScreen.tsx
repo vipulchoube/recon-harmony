@@ -22,20 +22,12 @@ export function ReconUserScreen() {
   const { reconciliationResult, setReconciliationResult, ledgerData, statementData, setLedgerData, setStatementData } = useRecon();
   const { state: reconState, runReconciliation } = useReconciliation();
 
-  // Use sample data if no data is uploaded
-  const effectiveLedgerData = ledgerData || sampleLedgerData;
-  const effectiveStatementData = statementData || sampleStatementData;
-
   // Compute pre-reconciliation stats from sample data
   const preReconStats = useMemo(() => computePreReconciliationStats(), []);
 
-  // Determine which stats to show based on whether AI reconciliation has run
-  const hasAIReconciliation = !!reconciliationResult;
-
-  // Compute counts from reconciliation result to ensure consistency
   // Compute AI-identified counts from reconciliation result
   const { knownCount, otherCount } = useMemo(() => {
-    if (!hasAIReconciliation || !reconciliationResult?.exceptions) {
+    if (!reconciliationResult?.exceptions) {
       return { knownCount: 0, otherCount: 0 };
     }
 
@@ -43,38 +35,12 @@ export function ReconUserScreen() {
     const records = reconciliationResult.exceptions.records || [];
     const otherExceptionsFromResult = reconciliationResult.exceptions.otherExceptions || [];
 
-    // Known exceptions: records with codes 101-106
     const known = records.filter(r => validCodes.includes(r.exception_code)).length;
-    
-    // OTHER exceptions: from otherExceptions array + records not matching 101-106
     const otherFromRecords = records.filter(r => !validCodes.includes(r.exception_code)).length;
     const otherTotal = otherExceptionsFromResult.length + otherFromRecords;
 
     return { knownCount: known, otherCount: otherTotal };
-  }, [hasAIReconciliation, reconciliationResult]);
-
-  // CRITICAL: Open Exceptions ALWAYS shows the pre-reconciliation value (constant)
-  const displayOpenExceptions = preReconStats.openExceptions;
-
-  // IMPORTANT: First 2 stats (total, auto-matched) remain constant
-  const displayTotalRecords = preReconStats.totalRecords;
-  const displayAutoMatched = preReconStats.autoMatched;
-
-  // AI-identified exceptions is 0 before reconciliation, then shows known (101-106) count
-  const aiIdentifiedExceptions = hasAIReconciliation ? knownCount : 0;
-
-  const handleStartReconciliation = async () => {
-    // Set sample data if not already set
-    if (!ledgerData) {
-      setLedgerData(sampleLedgerData);
-    }
-    if (!statementData) {
-      setStatementData(sampleStatementData);
-    }
-
-    // Run batch reconciliation (hook handles batching internally)
-    await runReconciliation();
-  };
+  }, [reconciliationResult]);
 
   // Update context when reconciliation completes (and normalize unknown tags to OTHER)
   useEffect(() => {
@@ -96,6 +62,27 @@ export function ReconUserScreen() {
 
     setReconciliationResult(normalized);
   }, [reconState.reconciliationResult, reconciliationResult, setReconciliationResult]);
+
+  // Determine which stats to show based on whether AI reconciliation has run
+  const hasAIReconciliation = !!reconciliationResult;
+
+  // CRITICAL: Open Exceptions ALWAYS shows the pre-reconciliation value (constant)
+  const displayOpenExceptions = preReconStats.openExceptions;
+  const displayTotalRecords = preReconStats.totalRecords;
+  const displayAutoMatched = preReconStats.autoMatched;
+
+  // AI-identified exceptions is 0 before reconciliation, then shows known (101-106) count
+  const aiIdentifiedExceptions = hasAIReconciliation ? knownCount : 0;
+
+  const handleStartReconciliation = async () => {
+    if (!ledgerData) {
+      setLedgerData(sampleLedgerData);
+    }
+    if (!statementData) {
+      setStatementData(sampleStatementData);
+    }
+    await runReconciliation();
+  };
   const stats = [
     {
       title: "Total Records",
