@@ -22,7 +22,7 @@ export function parseCSV(csvString: string): Record<string, string>[] {
 }
 
 // Batch size for AI processing
-export const BATCH_SIZE = 30;
+export const BATCH_SIZE = 5;
 
 // Get all open exception records (parsed, not CSV)
 export function getOpenExceptionRecords(): { 
