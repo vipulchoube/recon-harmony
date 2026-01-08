@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AgentState } from '@/hooks/useDataAgent';
@@ -64,9 +65,15 @@ function parseLedgerSchema(csvData: string): { columnName: string; inferredType:
 
 export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
   const { currentStep, isAnalyzing, dataQuality, schemaAnalysis, etlScript } = state;
+  const [approvedMappings, setApprovedMappings] = useState<Set<number>>(new Set());
   
   // Parse ledger schema from the uploaded ledger data
   const ledgerSchema = parseLedgerSchema(ledgerData || '');
+
+  const handleApproveMapping = (index: number) => {
+    setApprovedMappings(prev => new Set([...prev, index]));
+    toast.success('Mapping approved and set to 100% match');
+  };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -288,27 +295,6 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                 </div>
               </div>
 
-              {dataQuality?.summary && (
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="p-3 rounded-lg bg-secondary/50 text-center">
-                    <p className="text-2xl font-bold font-mono text-foreground">
-                      {dataQuality.summary.totalChecks || 0}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Total Checks</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-success/10 text-center">
-                    <p className="text-2xl font-bold font-mono text-success">
-                      {dataQuality.summary.passed || 0}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Passed</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-destructive/10 text-center">
-                    <p className="text-2xl font-bold font-mono text-destructive">
-                      {dataQuality.summary.failed || 0}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Warning</p>
-                  </div>
-              )}
             </TabsContent>
 
             {/* Schema Mapping Tab */}
@@ -322,33 +308,57 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                     </h4>
                     {schemaAnalysis.mappings && schemaAnalysis.mappings.length > 0 ? (
                       <div className="space-y-2">
-                        {schemaAnalysis.mappings.map((mapping, i) => (
-                          <div key={i} className="p-2 rounded bg-background/50 border border-border/50 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs text-info bg-info/10 px-2 py-1 rounded">{mapping.statementColumn}</span>
-                              <span className="text-muted-foreground text-xs">(Statement)</span>
-                              <span className="text-muted-foreground">→</span>
-                              <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-1 rounded">{mapping.ledgerColumn}</span>
-                              <span className="text-muted-foreground text-xs">(Target)</span>
+                        {schemaAnalysis.mappings.map((mapping, i) => {
+                          const isApproved = approvedMappings.has(i);
+                          const displayConfidence = isApproved ? 1 : mapping.matchConfidence;
+                          const needsApproval = !isApproved && mapping.matchConfidence < 0.9;
+                          
+                          return (
+                            <div key={i} className="p-2 rounded bg-background/50 border border-border/50 flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-xs text-info bg-info/10 px-2 py-1 rounded">{mapping.statementColumn}</span>
+                                <span className="text-muted-foreground text-xs">(Statement)</span>
+                                <span className="text-muted-foreground">→</span>
+                                <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-1 rounded">{mapping.ledgerColumn}</span>
+                                <span className="text-muted-foreground text-xs">(Target)</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {isApproved ? (
+                                  <span className="text-xs px-2 py-0.5 rounded bg-success/20 text-success flex items-center gap-1">
+                                    <CheckCircle className="h-3 w-3" />
+                                    Approved (100% match)
+                                  </span>
+                                ) : (
+                                  <span className={`text-xs px-2 py-0.5 rounded ${
+                                    displayConfidence > 0.8 
+                                      ? 'bg-success/20 text-success' 
+                                      : displayConfidence > 0.5 
+                                      ? 'bg-warning/20 text-warning'
+                                      : 'bg-destructive/20 text-destructive'
+                                  }`}>
+                                    {Math.round(displayConfidence * 100)}% match
+                                  </span>
+                                )}
+                                {mapping.transformationNeeded && (
+                                  <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">
+                                    Transform needed
+                                  </span>
+                                )}
+                                {needsApproval && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-6 px-2 text-xs"
+                                    onClick={() => handleApproveMapping(i)}
+                                  >
+                                    <CheckCircle className="h-3 w-3 mr-1" />
+                                    Approve
+                                  </Button>
+                                )}
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <span className={`text-xs px-2 py-0.5 rounded ${
-                                mapping.matchConfidence > 0.8 
-                                  ? 'bg-success/20 text-success' 
-                                  : mapping.matchConfidence > 0.5 
-                                  ? 'bg-warning/20 text-warning'
-                                  : 'bg-destructive/20 text-destructive'
-                              }`}>
-                                {Math.round(mapping.matchConfidence * 100)}% match
-                              </span>
-                              {mapping.transformationNeeded && (
-                                <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">
-                                  Transform needed
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <p className="text-sm text-muted-foreground">No mappings detected yet.</p>
@@ -424,7 +434,7 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <div className="p-3 rounded-lg bg-secondary/50 text-center">
                       <p className="text-2xl font-bold font-mono text-foreground">
                         {dataQuality.summary?.totalChecks || 0}
@@ -437,17 +447,11 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                       </p>
                       <p className="text-xs text-muted-foreground">Passed</p>
                     </div>
-                    <div className="p-3 rounded-lg bg-destructive/10 text-center">
-                      <p className="text-2xl font-bold font-mono text-destructive">
-                        {dataQuality.summary?.failed || 0}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Failed</p>
-                    </div>
                     <div className="p-3 rounded-lg bg-warning/10 text-center">
                       <p className="text-2xl font-bold font-mono text-warning">
-                        {dataQuality.summary?.criticalIssues || 0}
+                        {dataQuality.summary?.failed || 0}
                       </p>
-                      <p className="text-xs text-muted-foreground">Critical</p>
+                      <p className="text-xs text-muted-foreground">Warnings</p>
                     </div>
                   </div>
                   
