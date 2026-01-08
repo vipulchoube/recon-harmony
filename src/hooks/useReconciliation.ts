@@ -83,12 +83,23 @@ function mergeResults(results: ReconciliationResult[]): ReconciliationResult {
 
   merged.summary = Array.from(summaryMap.values());
   
-  // Convert deduplicated maps back to arrays
-  merged.exceptions.records = Array.from(seenRecords.values());
+  // Cross-deduplicate: remove records from seenRecords if they exist in otherExceptions
+  // This ensures a transaction_ref appears in ONLY ONE of the two arrays
+  const validCodes = ['101', '102', '103', '104', '105', '106'] as const;
+  
+  // Convert deduplicated maps back to arrays, filtering out duplicates
+  merged.exceptions.records = Array.from(seenRecords.values())
+    .filter(record => {
+      // If this record exists in otherExceptions, don't include it in records
+      if (seenOtherExceptions.has(record.transaction_ref)) {
+        return false;
+      }
+      // Only keep records with valid 101-106 codes
+      return validCodes.includes(record.exception_code as any);
+    });
   merged.exceptions.otherExceptions = Array.from(seenOtherExceptions.values());
   
   // Recalculate exceptionCounts from deduplicated records
-  const validCodes = ['101', '102', '103', '104', '105', '106'] as const;
   const recountMap = new Map<ExceptionCode, number>();
   merged.exceptions.records.forEach(r => {
     const code = r.exception_code as ExceptionCode;
