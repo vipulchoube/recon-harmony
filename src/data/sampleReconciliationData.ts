@@ -21,9 +21,6 @@ export function parseCSV(csvString: string): Record<string, string>[] {
   });
 }
 
-// Batch size for AI processing
-export const BATCH_SIZE = 5;
-
 // Get all open exception records (parsed, not CSV)
 export function getOpenExceptionRecords(): { 
   ledgerRecords: Record<string, string>[]; 
@@ -47,12 +44,43 @@ export function getOpenExceptionRecords(): {
     const statementRecord = statementMap.get(transactionRef);
     const tradeStatus = ledgerRecord.TradeStatus?.toUpperCase() || '';
     const settlementStatus = ledgerRecord.SettlementStatus?.toUpperCase() || '';
+    const isin = ledgerRecord['Security ISIN'] || '';
+    const amount = parseInt(ledgerRecord.Amount || '0', 10);
+    const openAmount = parseInt(ledgerRecord['Open Amount'] || '0', 10);
+    
+    // Check for various exception conditions
+    const isCancelled = tradeStatus === 'CANCELLED';
+    const isOpen = settlementStatus === 'OPEN';
+    const isPartiallySettled = settlementStatus === 'PARTIALLY SETTLED';
+    const isMissingInStatement = !statementRecord;
+    const isAmendWithDiscrepancy = tradeStatus === 'AMEND' && (amount === 0 || openAmount !== amount);
+    const isMissingIsin = !isin || isin.trim() === '';
+    
+    // Check for Balance Pool mismatch
+    let hasBalancePoolMismatch = false;
+    if (statementRecord) {
+      const ledgerBalancePool = ledgerRecord.Balance_Pool || '';
+      const statementBalancePool = statementRecord.Balance_Pool || '';
+      hasBalancePoolMismatch = ledgerBalancePool !== statementBalancePool;
+    }
+    
+    // Check for manual settlement not settled in market
+    let isManualNotSettled = false;
+    if (statementRecord) {
+      const manualSettlement = statementRecord.ManualSettlement?.toUpperCase() || '';
+      const statementState = statementRecord['Settlement State']?.toUpperCase() || '';
+      isManualNotSettled = manualSettlement === 'Y' && statementState !== 'SETTLED';
+    }
     
     const isException = 
-      tradeStatus === 'CANCELLED' ||
-      settlementStatus === 'OPEN' ||
-      settlementStatus === 'PARTIALLY SETTLED' ||
-      !statementRecord;
+      isCancelled ||
+      isOpen ||
+      isPartiallySettled ||
+      isMissingInStatement ||
+      hasBalancePoolMismatch ||
+      isManualNotSettled ||
+      isAmendWithDiscrepancy ||
+      isMissingIsin;
     
     if (isException) {
       openLedgerRecords.push(ledgerRecord);
@@ -60,51 +88,6 @@ export function getOpenExceptionRecords(): {
   });
   
   return { ledgerRecords: openLedgerRecords, statementRecords, statementMap };
-}
-
-// Convert a batch of records to CSV
-export function recordsToCSV(
-  ledgerRecords: Record<string, string>[], 
-  statementMap: Map<string, Record<string, string>>
-): { ledgerCSV: string; statementCSV: string } {
-  if (ledgerRecords.length === 0) {
-    return { ledgerCSV: '', statementCSV: '' };
-  }
-  
-  const ledgerHeaders = Object.keys(ledgerRecords[0]);
-  const transactionRefs = new Set(ledgerRecords.map(r => r.TransactionRef));
-  
-  // Get matching statement records
-  const matchingStatementRecords: Record<string, string>[] = [];
-  transactionRefs.forEach(ref => {
-    const record = statementMap.get(ref);
-    if (record) matchingStatementRecords.push(record);
-  });
-  
-  const ledgerCSV = [
-    ledgerHeaders.join(','),
-    ...ledgerRecords.map(row => ledgerHeaders.map(h => row[h] || '').join(','))
-  ].join('\n');
-  
-  const statementHeaders = matchingStatementRecords.length > 0 
-    ? Object.keys(matchingStatementRecords[0]) 
-    : [];
-  
-  const statementCSV = statementHeaders.length > 0 ? [
-    statementHeaders.join(','),
-    ...matchingStatementRecords.map(row => statementHeaders.map(h => row[h] || '').join(','))
-  ].join('\n') : '';
-  
-  return { ledgerCSV, statementCSV };
-}
-
-// Split records into batches
-export function getBatches<T>(records: T[], batchSize: number): T[][] {
-  const batches: T[][] = [];
-  for (let i = 0; i < records.length; i += batchSize) {
-    batches.push(records.slice(i, i + batchSize));
-  }
-  return batches;
 }
 
 // Pre-compute initial reconciliation stats (before AI analysis)
@@ -139,12 +122,6 @@ export function computePreReconciliationStats(): PreReconciliationStats {
     statementMap.set(record.TransactionRef, record);
   });
   
-  // Find matches and exceptions based on business rules:
-  // - CANCELLED trades are exceptions (no settlement expected)
-  // - OPEN settlement status means not yet settled - exception
-  // - PARTIALLY SETTLED means partial match - exception
-  // - SwiftRef mismatch (different prefix CP vs AP but same suffix) - may still match
-  // - Records not in statement - exception
   const openExceptionRecords: OpenExceptionRecord[] = [];
   let autoMatched = 0;
   
@@ -153,9 +130,45 @@ export function computePreReconciliationStats(): PreReconciliationStats {
     const statementRecord = statementMap.get(transactionRef);
     const tradeStatus = ledgerRecord.TradeStatus?.toUpperCase() || '';
     const settlementStatus = ledgerRecord.SettlementStatus?.toUpperCase() || '';
+    const isin = ledgerRecord['Security ISIN'] || '';
+    const amount = parseInt(ledgerRecord.Amount || '0', 10);
+    const openAmount = parseInt(ledgerRecord['Open Amount'] || '0', 10);
     
-    // CANCELLED trades are exceptions - they won't settle
-    if (tradeStatus === 'CANCELLED') {
+    // Check for various exception conditions
+    const isCancelled = tradeStatus === 'CANCELLED';
+    const isOpen = settlementStatus === 'OPEN';
+    const isPartiallySettled = settlementStatus === 'PARTIALLY SETTLED';
+    const isMissingInStatement = !statementRecord;
+    const isAmendWithDiscrepancy = tradeStatus === 'AMEND' && (amount === 0 || openAmount !== amount);
+    const isMissingIsin = !isin || isin.trim() === '';
+    
+    // Check for Balance Pool mismatch
+    let hasBalancePoolMismatch = false;
+    if (statementRecord) {
+      const ledgerBalancePool = ledgerRecord.Balance_Pool || '';
+      const statementBalancePool = statementRecord.Balance_Pool || '';
+      hasBalancePoolMismatch = ledgerBalancePool !== statementBalancePool;
+    }
+    
+    // Check for manual settlement not settled in market
+    let isManualNotSettled = false;
+    if (statementRecord) {
+      const manualSettlement = statementRecord.ManualSettlement?.toUpperCase() || '';
+      const statementState = statementRecord['Settlement State']?.toUpperCase() || '';
+      isManualNotSettled = manualSettlement === 'Y' && statementState !== 'SETTLED';
+    }
+    
+    const isException = 
+      isCancelled ||
+      isOpen ||
+      isPartiallySettled ||
+      isMissingInStatement ||
+      hasBalancePoolMismatch ||
+      isManualNotSettled ||
+      isAmendWithDiscrepancy ||
+      isMissingIsin;
+    
+    if (isException) {
       openExceptionRecords.push({
         transactionRef,
         ledgerSwiftRef: ledgerRecord.Swiftref || '',
@@ -166,56 +179,9 @@ export function computePreReconciliationStats(): PreReconciliationStats {
         reasonCode: '',
         assignedTo: '',
       });
-      return;
+    } else {
+      autoMatched++;
     }
-    
-    // OPEN settlement status - not yet settled
-    if (settlementStatus === 'OPEN') {
-      openExceptionRecords.push({
-        transactionRef,
-        ledgerSwiftRef: ledgerRecord.Swiftref || '',
-        settlementSwiftRef: statementRecord?.Swiftref || '',
-        isin: ledgerRecord['Security ISIN'] || '',
-        valueDate: ledgerRecord.ValueDate || '',
-        exceptionCode: '',
-        reasonCode: '',
-        assignedTo: '',
-      });
-      return;
-    }
-    
-    // PARTIALLY SETTLED - partial exception
-    if (settlementStatus === 'PARTIALLY SETTLED') {
-      openExceptionRecords.push({
-        transactionRef,
-        ledgerSwiftRef: ledgerRecord.Swiftref || '',
-        settlementSwiftRef: statementRecord?.Swiftref || '',
-        isin: ledgerRecord['Security ISIN'] || '',
-        valueDate: ledgerRecord.ValueDate || '',
-        exceptionCode: '',
-        reasonCode: '',
-        assignedTo: '',
-      });
-      return;
-    }
-    
-    // Check if record exists in statement
-    if (!statementRecord) {
-      openExceptionRecords.push({
-        transactionRef,
-        ledgerSwiftRef: ledgerRecord.Swiftref || '',
-        settlementSwiftRef: '',
-        isin: ledgerRecord['Security ISIN'] || '',
-        valueDate: ledgerRecord.ValueDate || '',
-        exceptionCode: '',
-        reasonCode: '',
-        assignedTo: '',
-      });
-      return;
-    }
-    
-    // SETTLED with matching record in statement - auto-matched
-    autoMatched++;
   });
   
   return {

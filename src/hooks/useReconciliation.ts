@@ -1,8 +1,7 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { ReconciliationResult, ExceptionCode, ExceptionRecord, OtherException } from '@/types/recon';
 import { toast } from 'sonner';
-import { getOpenExceptionRecords, recordsToCSV, getBatches, BATCH_SIZE } from '@/data/sampleReconciliationData';
+import { getOpenExceptionRecords } from '@/data/sampleReconciliationData';
 
 export interface ReconciliationState {
   isReconciling: boolean;
@@ -16,101 +15,63 @@ export interface ReconciliationState {
   } | null;
 }
 
-// Merge multiple reconciliation results into one, with deduplication
-function mergeResults(results: ReconciliationResult[]): ReconciliationResult {
-  const merged: ReconciliationResult = {
-    summary: [],
-    matching: {
-      matchedCount: 0,
-      unmatchedCount: 0,
-      totalRecords: 0,
-      matchedRecords: [],
-    },
-    exceptions: {
-      exceptionCounts: [],
-      records: [],
-      otherExceptions: [],
-    },
-    expectedOutput: [],
-  };
-
-  const summaryMap = new Map<ExceptionCode, { exceptionCode: ExceptionCode; exceptionDescription: string; count: number }>();
+// Deterministic exception code assignment based on data patterns
+function assignExceptionCode(
+  ledgerRecord: Record<string, string>,
+  statementRecord: Record<string, string> | undefined
+): { code: ExceptionCode; description: string } {
+  const tradeStatus = ledgerRecord.TradeStatus?.toUpperCase() || '';
+  const settlementStatus = ledgerRecord.SettlementStatus?.toUpperCase() || '';
+  const isin = ledgerRecord['Security ISIN'] || '';
+  const amount = parseInt(ledgerRecord.Amount || '0', 10);
+  const openAmount = parseInt(ledgerRecord['Open Amount'] || '0', 10);
   
-  // Deduplication maps using transaction_ref as key
-  const seenRecords = new Map<string, ExceptionRecord>();
-  const seenOtherExceptions = new Map<string, OtherException>();
-
-  results.forEach(result => {
-    // Merge summary
-    (result.summary || []).forEach(item => {
-      const code = item.exceptionCode as ExceptionCode;
-      const existing = summaryMap.get(code);
-      if (existing) {
-        existing.count += item.count;
-      } else {
-        summaryMap.set(code, { exceptionCode: code, exceptionDescription: item.exceptionDescription, count: item.count });
-      }
-    });
-
-    // Merge matching
-    if (result.matching) {
-      merged.matching.matchedCount += result.matching.matchedCount || 0;
-      merged.matching.unmatchedCount += result.matching.unmatchedCount || 0;
-      merged.matching.totalRecords += result.matching.totalRecords || 0;
-      merged.matching.matchedRecords.push(...(result.matching.matchedRecords || []));
-    }
-
-    // Merge exceptions WITH DEDUPLICATION by transaction_ref
-    if (result.exceptions) {
-      (result.exceptions.records || []).forEach(record => {
-        const key = record.transaction_ref;
-        if (key && !seenRecords.has(key)) {
-          seenRecords.set(key, record);
-        }
-      });
-      
-      (result.exceptions.otherExceptions || []).forEach(other => {
-        const key = other.transaction_ref;
-        if (key && !seenOtherExceptions.has(key)) {
-          seenOtherExceptions.set(key, other);
-        }
-      });
-    }
-
-    // Merge expectedOutput
-    merged.expectedOutput.push(...(result.expectedOutput || []));
-  });
-
-  merged.summary = Array.from(summaryMap.values());
+  // 101: Feed Issue - No matching statement record
+  if (!statementRecord) {
+    return { code: '101', description: 'Feed Issue - No matching settlement record found in statement' };
+  }
   
-  // Cross-deduplicate: remove records from seenRecords if they exist in otherExceptions
-  // This ensures a transaction_ref appears in ONLY ONE of the two arrays
-  const validCodes = ['101', '102', '103', '104', '105', '106'] as const;
+  const statementState = statementRecord['Settlement State']?.toUpperCase() || '';
+  const manualSettlement = statementRecord.ManualSettlement?.toUpperCase() || '';
+  const ledgerBalancePool = ledgerRecord.Balance_Pool || '';
+  const statementBalancePool = statementRecord.Balance_Pool || '';
   
-  // Convert deduplicated maps back to arrays, filtering out duplicates
-  merged.exceptions.records = Array.from(seenRecords.values())
-    .filter(record => {
-      // If this record exists in otherExceptions, don't include it in records
-      if (seenOtherExceptions.has(record.transaction_ref)) {
-        return false;
-      }
-      // Only keep records with valid 101-106 codes
-      return validCodes.includes(record.exception_code as any);
-    });
-  merged.exceptions.otherExceptions = Array.from(seenOtherExceptions.values());
+  // 102: Cancelled Trade - Ledger cancelled but statement shows settled
+  if (tradeStatus === 'CANCELLED' && statementState === 'SETTLED') {
+    return { code: '102', description: 'Cancelled Trade - Trade cancelled in ledger but settled in statement' };
+  }
   
-  // Recalculate exceptionCounts from deduplicated records
-  const recountMap = new Map<ExceptionCode, number>();
-  merged.exceptions.records.forEach(r => {
-    const code = r.exception_code as ExceptionCode;
-    if (validCodes.includes(code as any)) {
-      recountMap.set(code, (recountMap.get(code) || 0) + 1);
-    }
-  });
-  merged.exceptions.exceptionCounts = Array.from(recountMap.entries())
-    .map(([code, count]) => ({ code, count }));
-
-  return merged;
+  // 103: Unsettled Trade - Ledger open but statement shows settled
+  if (settlementStatus === 'OPEN' && statementState === 'SETTLED') {
+    return { code: '103', description: 'Unsettled Trade - Trade open in ledger but shows as settled in statement' };
+  }
+  
+  // 104: Not Settled in Market - Manual settlement with no market settlement
+  if (manualSettlement === 'Y' && statementState !== 'SETTLED') {
+    return { code: '104', description: 'Not Settled in Market - Manual settlement flagged but not settled in market' };
+  }
+  
+  // 105: Wrong Account - Balance Pool mismatch
+  if (ledgerBalancePool && statementBalancePool && ledgerBalancePool !== statementBalancePool) {
+    return { code: '105', description: 'Wrong Account - Balance Pool mismatch between ledger and statement' };
+  }
+  
+  // 106: Partial Settlement
+  if (settlementStatus === 'PARTIALLY SETTLED' || statementState === 'PARTIALLY SETTLED') {
+    return { code: '106', description: 'Partial Settlement - Trade only partially settled' };
+  }
+  
+  // OTHER: Edge cases - empty ISIN, zero amounts with AMEND, amount mismatches
+  if (!isin || isin.trim() === '') {
+    return { code: 'OTHER', description: 'Data Quality Issue - Missing ISIN' };
+  }
+  
+  if (tradeStatus === 'AMEND' && (amount === 0 || openAmount !== amount)) {
+    return { code: 'OTHER', description: 'Amendment Issue - Amended trade with data discrepancy' };
+  }
+  
+  // Fallback OTHER for any remaining edge cases
+  return { code: 'OTHER', description: 'Unclassified Exception - Review required' };
 }
 
 export function useReconciliation() {
@@ -132,66 +93,93 @@ export function useReconciliation() {
 
     try {
       const { ledgerRecords, statementMap } = getOpenExceptionRecords();
-      const batches = getBatches(ledgerRecords, BATCH_SIZE);
       const totalRecords = ledgerRecords.length;
-      const totalBatches = batches.length;
 
-      if (totalBatches === 0) {
+      if (totalRecords === 0) {
         toast.info('No open exceptions to process');
         setState(prev => ({ ...prev, isReconciling: false }));
         return;
       }
 
-      toast.info(`Processing ${totalRecords} exceptions in ${totalBatches} batches...`);
+      toast.info(`Processing ${totalRecords} exceptions...`);
 
-      const results: ReconciliationResult[] = [];
-      let processedRecords = 0;
+      // Process all records deterministically
+      const exceptionRecords: ExceptionRecord[] = [];
+      const otherExceptions: OtherException[] = [];
+      const exceptionCounts = new Map<ExceptionCode, number>();
 
-      for (let i = 0; i < batches.length; i++) {
-        const batch = batches[i];
-        const { ledgerCSV, statementCSV } = recordsToCSV(batch, statementMap);
-
-        setState(prev => ({
-          ...prev,
-          progress: {
-            currentBatch: i + 1,
-            totalBatches,
-            processedRecords,
-            totalRecords,
-          },
-        }));
-
-        const reconResponse = await supabase.functions.invoke('analyze-data', {
-          body: { ledgerData: ledgerCSV, statementData: statementCSV, analysisType: 'reconciliation' }
-        });
-
-        if (reconResponse.error) {
-          console.error(`Batch ${i + 1} error:`, reconResponse.error);
-          // Continue with other batches even if one fails
-          continue;
+      ledgerRecords.forEach(ledgerRecord => {
+        const transactionRef = ledgerRecord.TransactionRef;
+        const statementRecord = statementMap.get(transactionRef);
+        
+        const { code, description } = assignExceptionCode(ledgerRecord, statementRecord);
+        
+        // Update counts
+        exceptionCounts.set(code, (exceptionCounts.get(code) || 0) + 1);
+        
+        if (code === 'OTHER') {
+          otherExceptions.push({
+            transaction_ref: transactionRef,
+            ledger_swiftref: ledgerRecord.Swiftref || '',
+            settlement_swiftref: statementRecord?.Swiftref || '',
+            isin: ledgerRecord['Security ISIN'] || '',
+            value_date: ledgerRecord.ValueDate || '',
+            amount: ledgerRecord.Amount || '',
+            quantity: ledgerRecord.Quantity || '',
+            issue_description: description,
+            ledger_index: 0,
+            settlement_index: 0,
+            other_subtype: 'DATA_QUALITY',
+            other_description: description,
+            reason_code: 'OTHER',
+          });
+        } else {
+          exceptionRecords.push({
+            transaction_ref: transactionRef,
+            ledger_swiftref: ledgerRecord.Swiftref || '',
+            settlement_swiftref: statementRecord?.Swiftref || '',
+            isin: ledgerRecord['Security ISIN'] || '',
+            value_date: ledgerRecord.ValueDate || '',
+            amount: ledgerRecord.Amount || '',
+            quantity: ledgerRecord.Quantity || '',
+            issue_description: description,
+            exception_code: code,
+            reason_code: code,
+            match_status: 'UNMATCHED',
+            confidence: 1.0,
+          });
         }
+      });
 
-        const batchResult = reconResponse.data?.result as ReconciliationResult & { parseError?: string };
-        if (batchResult && !batchResult.parseError) {
-          results.push(batchResult);
-        }
-
-        processedRecords += batch.length;
-      }
-
-      if (results.length === 0) {
-        throw new Error('All batches failed to process');
-      }
-
-      const mergedResult = mergeResults(results);
+      const result: ReconciliationResult = {
+        summary: Array.from(exceptionCounts.entries()).map(([code, count]) => ({
+          exceptionCode: code,
+          exceptionDescription: getExceptionDescription(code),
+          count,
+        })),
+        matching: {
+          matchedCount: 0,
+          unmatchedCount: totalRecords,
+          totalRecords: totalRecords,
+          matchedRecords: [],
+        },
+        exceptions: {
+          exceptionCounts: Array.from(exceptionCounts.entries())
+            .filter(([code]) => code !== 'OTHER')
+            .map(([code, count]) => ({ code, count })),
+          records: exceptionRecords,
+          otherExceptions: otherExceptions,
+        },
+        expectedOutput: [],
+      };
 
       setState(prev => ({ 
         ...prev, 
-        reconciliationResult: mergedResult,
+        reconciliationResult: result,
         isReconciling: false,
         progress: {
-          currentBatch: totalBatches,
-          totalBatches,
+          currentBatch: 1,
+          totalBatches: 1,
           processedRecords: totalRecords,
           totalRecords,
         },
@@ -222,4 +210,17 @@ export function useReconciliation() {
   }, []);
 
   return { state, runReconciliation, reset };
+}
+
+function getExceptionDescription(code: ExceptionCode): string {
+  const descriptions: Record<ExceptionCode, string> = {
+    '101': 'Feed Issue',
+    '102': 'Cancelled Trade',
+    '103': 'Unsettled Trade',
+    '104': 'Not Settled in Market',
+    '105': 'Wrong Account',
+    '106': 'Partial Settlement',
+    'OTHER': 'Other Exception',
+  };
+  return descriptions[code] || 'Unknown Exception';
 }
