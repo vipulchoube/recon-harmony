@@ -50,11 +50,20 @@ serve(async (req) => {
     let userPrompt = '';
 
     if (analysisType === 'data_quality') {
-      systemPrompt = `You are a data quality analyst AI agent specialized in trade reconciliation. Analyze the provided statement CSV data and identify:
+      systemPrompt = `You are a data quality analyst AI agent specialized in trade reconciliation. Analyze the provided CSV data and identify:
 1. Data quality issues (nulls, duplicates, invalid formats)
 2. Column data type mismatches
 3. Referential integrity issues
 4. Business rule violations for trade data (ISIN validation, date formats, quantity/price validation)
+
+IMPORTANT: You are analyzing REAL uploaded files. Perform actual data analysis:
+- Count actual duplicate rows by comparing key fields (like Transaction_Ref, ISIN combinations)
+- Check for actual null/empty values in each column
+- Validate actual date formats in date columns
+- Validate actual numeric values in quantity/amount columns
+- Check ISIN format validity (12 characters, alphanumeric)
+
+If the data is clean and valid, report it as PASSING. Do not fail checks just for theoretical issues.
 
 Respond with a JSON object with this structure:
 {
@@ -74,17 +83,38 @@ Respond with a JSON object with this structure:
     "passed": number,
     "failed": number,
     "criticalIssues": number
+  },
+  "ledgerAnalysis": {
+    "rowCount": number,
+    "columnCount": number,
+    "issues": []
+  },
+  "statementAnalysis": {
+    "rowCount": number,
+    "columnCount": number,
+    "issues": []
   }
 }`;
-      userPrompt = `Analyze the following statement data for quality issues:
+      userPrompt = `Analyze the following data files for quality issues. Perform ACTUAL checks on the real data provided:
 
-STATEMENT DATA:
+${ledgerData ? `LEDGER DATA:
+${ledgerData}
+
+` : ''}STATEMENT DATA:
 ${statementData}
 
 ${targetSchema ? `TARGET SCHEMA (for reference):
 ${targetSchema}` : ''}
 
-Perform comprehensive data quality checks and return the results as JSON.`;
+Perform these specific checks on the ACTUAL data:
+1. NULL/EMPTY CHECK: Count rows with null or empty values in each column
+2. DUPLICATE CHECK: Count actual duplicate rows based on key fields (Transaction_Ref, ISIN)
+3. DATE FORMAT CHECK: Verify date columns have consistent valid formats
+4. NUMERIC VALIDATION: Verify quantity and amount columns contain valid numbers
+5. ISIN VALIDATION: Check ISIN format (should be 12 alphanumeric characters)
+6. REQUIRED FIELDS: Check that key fields are populated
+
+Return the results as JSON. Mark checks as PASSED if no issues found.`;
     } else if (analysisType === 'schema_analysis') {
       systemPrompt = `You are a schema analysis AI agent. Analyze the provided statement CSV data and compare it against the target schema:
 1. Infer column data types from the statement data
