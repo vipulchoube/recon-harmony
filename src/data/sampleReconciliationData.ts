@@ -21,12 +21,15 @@ export function parseCSV(csvString: string): Record<string, string>[] {
   });
 }
 
-// Maximum records to send to AI to prevent request size limits
-const MAX_RECORDS_FOR_AI = 150;
+// Batch size for AI processing
+export const BATCH_SIZE = 30;
 
-// Get only the open exception records as CSV (for AI reconciliation)
-// Limited to MAX_RECORDS_FOR_AI to prevent request truncation
-export function getOpenExceptionRecordsCSV(): { ledgerCSV: string; statementCSV: string; totalExceptions: number; sentExceptions: number } {
+// Get all open exception records (parsed, not CSV)
+export function getOpenExceptionRecords(): { 
+  ledgerRecords: Record<string, string>[]; 
+  statementRecords: Record<string, string>[];
+  statementMap: Map<string, Record<string, string>>;
+} {
   const ledgerRecords = parseCSV(sampleLedgerData);
   const statementRecords = parseCSV(sampleStatementData);
   
@@ -38,7 +41,6 @@ export function getOpenExceptionRecordsCSV(): { ledgerCSV: string; statementCSV:
   
   // Find open exception ledger records
   const openLedgerRecords: Record<string, string>[] = [];
-  const matchedTransactionRefs = new Set<string>();
   
   ledgerRecords.forEach(ledgerRecord => {
     const transactionRef = ledgerRecord.TransactionRef;
@@ -54,41 +56,55 @@ export function getOpenExceptionRecordsCSV(): { ledgerCSV: string; statementCSV:
     
     if (isException) {
       openLedgerRecords.push(ledgerRecord);
-      matchedTransactionRefs.add(transactionRef);
     }
   });
   
-  const totalExceptions = openLedgerRecords.length;
+  return { ledgerRecords: openLedgerRecords, statementRecords, statementMap };
+}
+
+// Convert a batch of records to CSV
+export function recordsToCSV(
+  ledgerRecords: Record<string, string>[], 
+  statementMap: Map<string, Record<string, string>>
+): { ledgerCSV: string; statementCSV: string } {
+  if (ledgerRecords.length === 0) {
+    return { ledgerCSV: '', statementCSV: '' };
+  }
   
-  // Limit to MAX_RECORDS_FOR_AI to prevent request truncation
-  const limitedLedgerRecords = openLedgerRecords.slice(0, MAX_RECORDS_FOR_AI);
-  const limitedTransactionRefs = new Set(limitedLedgerRecords.map(r => r.TransactionRef));
+  const ledgerHeaders = Object.keys(ledgerRecords[0]);
+  const transactionRefs = new Set(ledgerRecords.map(r => r.TransactionRef));
   
-  // Get matching statement records (only for limited set)
-  const openStatementRecords = statementRecords.filter(record => 
-    limitedTransactionRefs.has(record.TransactionRef)
-  );
-  
-  // Convert to CSV
-  const ledgerHeaders = Object.keys(ledgerRecords[0] || {});
-  const statementHeaders = Object.keys(statementRecords[0] || {});
+  // Get matching statement records
+  const matchingStatementRecords: Record<string, string>[] = [];
+  transactionRefs.forEach(ref => {
+    const record = statementMap.get(ref);
+    if (record) matchingStatementRecords.push(record);
+  });
   
   const ledgerCSV = [
     ledgerHeaders.join(','),
-    ...limitedLedgerRecords.map(row => ledgerHeaders.map(h => row[h] || '').join(','))
+    ...ledgerRecords.map(row => ledgerHeaders.map(h => row[h] || '').join(','))
   ].join('\n');
   
-  const statementCSV = [
+  const statementHeaders = matchingStatementRecords.length > 0 
+    ? Object.keys(matchingStatementRecords[0]) 
+    : [];
+  
+  const statementCSV = statementHeaders.length > 0 ? [
     statementHeaders.join(','),
-    ...openStatementRecords.map(row => statementHeaders.map(h => row[h] || '').join(','))
-  ].join('\n');
+    ...matchingStatementRecords.map(row => statementHeaders.map(h => row[h] || '').join(','))
+  ].join('\n') : '';
   
-  return { 
-    ledgerCSV, 
-    statementCSV, 
-    totalExceptions, 
-    sentExceptions: limitedLedgerRecords.length 
-  };
+  return { ledgerCSV, statementCSV };
+}
+
+// Split records into batches
+export function getBatches<T>(records: T[], batchSize: number): T[][] {
+  const batches: T[][] = [];
+  for (let i = 0; i < records.length; i += batchSize) {
+    batches.push(records.slice(i, i + batchSize));
+  }
+  return batches;
 }
 
 // Pre-compute initial reconciliation stats (before AI analysis)

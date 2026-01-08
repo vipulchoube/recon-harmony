@@ -4,10 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
 import { useRecon } from "@/context/ReconContext";
 import { ReconciliationDashboard } from "@/components/ReconciliationDashboard";
 import { useReconciliation } from "@/hooks/useReconciliation";
-import { computePreReconciliationStats, getOpenExceptionRecordsCSV, sampleLedgerData, sampleStatementData } from "@/data/sampleReconciliationData";
+import { computePreReconciliationStats, sampleLedgerData, sampleStatementData } from "@/data/sampleReconciliationData";
 import type { ExceptionCode } from "@/types/recon";
 
 const KNOWN_EXCEPTION_CODES = new Set<ExceptionCode>(['101', '102', '103', '104', '105', '106']);
@@ -93,14 +94,6 @@ export function ReconUserScreen() {
   const aiIdentifiedExceptions = hasAIReconciliation ? knownCount : 0;
 
   const handleStartReconciliation = async () => {
-    // Get only the open exception records for AI reconciliation (limited to prevent truncation)
-    const { ledgerCSV, statementCSV, totalExceptions, sentExceptions } = getOpenExceptionRecordsCSV();
-
-    // Log if we're only sending a subset
-    if (sentExceptions < totalExceptions) {
-      console.log(`Sending ${sentExceptions} of ${totalExceptions} exceptions to AI (limited to prevent request size issues)`);
-    }
-
     // Set sample data if not already set
     if (!ledgerData) {
       setLedgerData(sampleLedgerData);
@@ -109,8 +102,8 @@ export function ReconUserScreen() {
       setStatementData(sampleStatementData);
     }
 
-    // Run reconciliation only on open exceptions
-    await runReconciliation(ledgerCSV, statementCSV);
+    // Run batch reconciliation (hook handles batching internally)
+    await runReconciliation();
   };
 
   // Update context when reconciliation completes (and normalize unknown tags to OTHER)
@@ -161,6 +154,11 @@ export function ReconUserScreen() {
 
   const canStartRecon = !reconState.isReconciling;
 
+  // Progress calculation
+  const progressPercent = reconState.progress 
+    ? Math.round((reconState.progress.processedRecords / reconState.progress.totalRecords) * 100) 
+    : 0;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -177,6 +175,28 @@ export function ReconUserScreen() {
           {reconState.isReconciling ? "Reconciling..." : "Start AI Reconciliation"}
         </Button>
       </div>
+
+      {/* Progress Indicator */}
+      {reconState.isReconciling && reconState.progress && (
+        <Card className="glass-card border-primary/20">
+          <CardContent className="py-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">
+                  Processing batch {reconState.progress.currentBatch} of {reconState.progress.totalBatches}
+                </span>
+                <span className="font-mono text-primary">
+                  {reconState.progress.processedRecords} / {reconState.progress.totalRecords} records
+                </span>
+              </div>
+              <Progress value={progressPercent} className="h-2" />
+              <p className="text-xs text-muted-foreground text-center">
+                {progressPercent}% complete
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
