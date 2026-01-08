@@ -5,7 +5,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
+// Auto-Match Trend data for last 6 months
+const autoMatchTrendData = [
+  { month: "Aug", percentage: 82 },
+  { month: "Sep", percentage: 85 },
+  { month: "Oct", percentage: 83 },
+  { month: "Nov", percentage: 87 },
+  { month: "Dec", percentage: 86 },
+  { month: "Jan", percentage: 89 },
+];
 // Mock data for Recon Lead dashboard - using the 4 teams
 const teams = [
   { id: 1, teamName: "Euroclear settlement team", assigned: 18, resolved: 15, pending: 3, avgResolutionTime: 22 },
@@ -196,40 +206,80 @@ export function ReconLeadScreen() {
         </Card>
       </div>
 
-      {/* Aging Dashboard */}
-      <Card className="glass-card">
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Timer className="h-5 w-5 text-primary" />
-            Case Aging Dashboard
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-5">
-            {agingData.map((item) => {
-              const totalCases = agingData.reduce((sum, a) => sum + a.count, 0);
-              const percentage = Math.round((item.count / totalCases) * 100);
-              return (
-                <div key={item.range} className="text-center p-4 rounded-lg bg-secondary/50">
-                  <div className={`mx-auto w-3 h-3 rounded-full ${item.color} mb-2`} />
-                  <div className="text-2xl font-bold font-mono">{item.count}</div>
-                  <div className="text-sm font-medium text-muted-foreground">{item.range}</div>
-                  <div className="text-xs text-muted-foreground mt-1">{percentage}%</div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="mt-4 flex items-center gap-2">
-            <div className="flex-1 h-4 rounded-full overflow-hidden flex">
+      {/* Aging Dashboard and Auto-Match Trend */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Case Aging Dashboard */}
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Timer className="h-5 w-5 text-primary" />
+              Case Aging Dashboard
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 grid-cols-3">
               {agingData.map((item) => {
                 const totalCases = agingData.reduce((sum, a) => sum + a.count, 0);
-                const width = (item.count / totalCases) * 100;
-                return <div key={item.range} className={`${item.color} h-full`} style={{ width: `${width}%` }} />;
+                const percentage = Math.round((item.count / totalCases) * 100);
+                return (
+                  <div key={item.range} className="text-center p-4 rounded-lg bg-secondary/50">
+                    <div className={`mx-auto w-3 h-3 rounded-full ${item.color} mb-2`} />
+                    <div className="text-2xl font-bold font-mono">{item.count}</div>
+                    <div className="text-sm font-medium text-muted-foreground">{item.range}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{percentage}%</div>
+                  </div>
+                );
               })}
             </div>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="mt-4 flex items-center gap-2">
+              <div className="flex-1 h-4 rounded-full overflow-hidden flex">
+                {agingData.map((item) => {
+                  const totalCases = agingData.reduce((sum, a) => sum + a.count, 0);
+                  const width = (item.count / totalCases) * 100;
+                  return <div key={item.range} className={`${item.color} h-full`} style={{ width: `${width}%` }} />;
+                })}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Auto-Match Trend Chart */}
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Auto-Match Trend %
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[200px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={autoMatchTrendData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="month" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                  <YAxis domain={[75, 95]} className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(value) => `${value}%`} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))', 
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px'
+                    }}
+                    formatter={(value: number) => [`${value}%`, 'Auto-Match']}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="percentage" 
+                    stroke="hsl(var(--primary))" 
+                    strokeWidth={2}
+                    dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2 }}
+                    activeDot={{ r: 6, fill: 'hsl(var(--primary))' }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Exceptions by Category */}
       <Card className="glass-card">
