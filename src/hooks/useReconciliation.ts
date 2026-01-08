@@ -61,17 +61,25 @@ function assignExceptionCode(
     return { code: '106', description: 'Partial Settlement - Trade only partially settled' };
   }
   
-  // OTHER: Edge cases - empty ISIN, zero amounts with AMEND, amount mismatches
-  if (!isin || isin.trim() === '') {
-    return { code: 'OTHER', description: 'Data Quality Issue - Missing ISIN' };
+  // OTHER: Two specific cases
+  // Case 1: Misalignment in trade date and value date
+  const tradeDate = ledgerRecord.TradeDate || '';
+  const valueDate = ledgerRecord.ValueDate || '';
+  if (tradeDate && valueDate && tradeDate > valueDate) {
+    return { code: 'OTHER', description: 'Trade Date/Value Date Misalignment - Trade date is after value date' };
   }
   
-  if (tradeStatus === 'AMEND' && (amount === 0 || openAmount !== amount)) {
-    return { code: 'OTHER', description: 'Amendment Issue - Amended trade with data discrepancy' };
+  // Case 2: Incorrect netting - amounts don't match between ledger and statement
+  if (statementRecord) {
+    const ledgerAmount = parseInt(ledgerRecord.Amount || '0', 10);
+    const statementAmount = parseInt(statementRecord.Amount || '0', 10);
+    if (ledgerAmount !== statementAmount && Math.abs(ledgerAmount - statementAmount) > 1) {
+      return { code: 'OTHER', description: 'Incorrect Netting - Amount mismatch between ledger and statement records' };
+    }
   }
   
-  // Fallback OTHER for any remaining edge cases
-  return { code: 'OTHER', description: 'Unclassified Exception - Review required' };
+  // Fallback to 101 for any remaining edge cases (should not happen with proper data)
+  return { code: '101', description: 'Feed Issue - Unclassified exception' };
 }
 
 export function useReconciliation() {
@@ -92,8 +100,8 @@ export function useReconciliation() {
     }));
 
     try {
-      // Add 5 second delay to simulate processing
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      // Add 10 second delay to simulate processing
+      await new Promise(resolve => setTimeout(resolve, 10000));
 
       const { ledgerRecords, statementMap } = getOpenExceptionRecords();
       const totalRecords = ledgerRecords.length;
