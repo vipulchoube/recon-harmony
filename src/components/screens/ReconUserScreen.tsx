@@ -152,16 +152,19 @@ export function ReconUserScreen() {
           <CardContent className="py-4">
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">
-                  Processing batch {reconState.progress.currentBatch} of {reconState.progress.totalBatches}
-                </span>
-                <span className="font-mono text-primary">
-                  {reconState.progress.processedRecords} / {reconState.progress.totalRecords} records
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <span className="text-foreground font-medium">
+                    AI analyzing record {reconState.progress.currentBatch} of {reconState.progress.totalRecords}
+                  </span>
+                </div>
+                <span className="font-mono text-primary font-bold">
+                  {reconState.progress.processedRecords} / {reconState.progress.totalRecords}
                 </span>
               </div>
               <Progress value={progressPercent} className="h-2" />
               <p className="text-xs text-muted-foreground text-center">
-                {progressPercent}% complete
+                {progressPercent}% complete • Processing 1 record at a time with AI analysis
               </p>
             </div>
           </CardContent>
