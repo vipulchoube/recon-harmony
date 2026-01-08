@@ -46,7 +46,7 @@ export function ReconLeadScreen() {
     const totalResolved = teams.reduce((sum, t) => sum + t.resolved, 0);
     const totalPending = teams.reduce((sum, t) => sum + t.pending, 0);
     const resolutionRate = Math.round((totalResolved / totalAssigned) * 100);
-    
+
     return {
       totalTeams: teams.length,
       totalAssigned,
@@ -61,7 +61,7 @@ export function ReconLeadScreen() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-foreground">Daily Reconciliation Dashboard</h2>
+        <h2 className="text-2xl font-bold text-foreground">Reconciliation Dashboard</h2>
         <p className="text-muted-foreground">Team performance and exception management overview</p>
       </div>
 
@@ -173,15 +173,22 @@ export function ReconLeadScreen() {
               <div className="space-y-4">
                 {recentActivity.map((activity) => (
                   <div key={activity.id} className="flex items-start gap-3 pb-3 border-b border-border last:border-0">
-                    <div className={`mt-1 h-2 w-2 rounded-full ${
-                      activity.type === 'resolved' ? 'bg-success' :
-                      activity.type === 'escalated' ? 'bg-destructive' :
-                      activity.type === 'assigned' ? 'bg-primary' :
-                      'bg-warning'
-                    }`} />
+                    <div
+                      className={`mt-1 h-2 w-2 rounded-full ${
+                        activity.type === "resolved"
+                          ? "bg-success"
+                          : activity.type === "escalated"
+                            ? "bg-destructive"
+                            : activity.type === "assigned"
+                              ? "bg-primary"
+                              : "bg-warning"
+                      }`}
+                    />
                     <div className="flex-1 space-y-1">
                       <p className="text-sm font-medium">{activity.action}</p>
-                      <p className="text-xs text-muted-foreground">{activity.user} • {activity.time}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {activity.user} • {activity.time}
+                      </p>
                     </div>
                   </div>
                 ))}
@@ -219,13 +226,7 @@ export function ReconLeadScreen() {
               {agingData.map((item) => {
                 const totalCases = agingData.reduce((sum, a) => sum + a.count, 0);
                 const width = (item.count / totalCases) * 100;
-                return (
-                  <div
-                    key={item.range}
-                    className={`${item.color} h-full`}
-                    style={{ width: `${width}%` }}
-                  />
-                );
+                return <div key={item.range} className={`${item.color} h-full`} style={{ width: `${width}%` }} />;
               })}
             </div>
           </div>
@@ -243,23 +244,27 @@ export function ReconLeadScreen() {
               <div key={exception.code} className="flex items-center justify-between p-4 rounded-lg bg-secondary/50">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="font-mono">{exception.code}</Badge>
+                    <Badge variant="outline" className="font-mono">
+                      {exception.code}
+                    </Badge>
                     <span className="text-sm font-medium">{exception.category}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-2xl font-bold font-mono">{exception.count}</span>
-                    <span className="text-xs text-muted-foreground">
-                      of {totalExceptions} total
-                    </span>
+                    <span className="text-xs text-muted-foreground">of {totalExceptions} total</span>
                   </div>
                 </div>
-                <div className={`flex items-center gap-1 text-xs ${
-                  exception.trend === 'up' ? 'text-destructive' :
-                  exception.trend === 'down' ? 'text-success' :
-                  'text-muted-foreground'
-                }`}>
-                  {exception.trend === 'up' && <AlertTriangle className="h-3 w-3" />}
-                  {exception.trend === 'down' && <TrendingUp className="h-3 w-3 rotate-180" />}
+                <div
+                  className={`flex items-center gap-1 text-xs ${
+                    exception.trend === "up"
+                      ? "text-destructive"
+                      : exception.trend === "down"
+                        ? "text-success"
+                        : "text-muted-foreground"
+                  }`}
+                >
+                  {exception.trend === "up" && <AlertTriangle className="h-3 w-3" />}
+                  {exception.trend === "down" && <TrendingUp className="h-3 w-3 rotate-180" />}
                   <span className="capitalize">{exception.trend}</span>
                 </div>
               </div>
