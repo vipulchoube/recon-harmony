@@ -1,32 +1,25 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { AgentState } from '@/hooks/useDataAgent';
-import { 
-  CheckCircle, 
-  XCircle, 
-  AlertTriangle, 
-  Info, 
-  Loader2, 
-  Database, 
-  Code, 
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { AgentState } from "@/hooks/useDataAgent";
+import {
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  Info,
+  Loader2,
+  Database,
+  Code,
   Copy,
   Download,
   Bot,
   FileText,
-  GitCompare
-} from 'lucide-react';
-import { toast } from 'sonner';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { EXCEPTION_DEFINITIONS, ExceptionCode } from '@/types/recon';
+  GitCompare,
+} from "lucide-react";
+import { toast } from "sonner";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EXCEPTION_DEFINITIONS, ExceptionCode } from "@/types/recon";
 
 interface AgentAnalysisPanelProps {
   state: AgentState;
@@ -37,27 +30,39 @@ export function AgentAnalysisPanel({ state }: AgentAnalysisPanelProps) {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast.success('Copied to clipboard');
+    toast.success("Copied to clipboard");
   };
 
   const downloadScript = () => {
     if (!etlScript?.script) return;
-    const blob = new Blob([etlScript.script], { type: 'text/plain' });
+    const blob = new Blob([etlScript.script], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = 'oracle_etl_script.sql';
+    a.download = "oracle_etl_script.sql";
     a.click();
     URL.revokeObjectURL(url);
-    toast.success('ETL script downloaded');
+    toast.success("ETL script downloaded");
   };
 
   const downloadExpectedOutput = () => {
     if (!reconciliationResult?.expectedOutput) return;
-    const headers = ['Department', 'Balance Pool', 'Security ISIN', 'Ledger or Statement Break', 'Direction', 'Quantity', 'Amount', 'Currency', 'ValueDate', 'Our Settlement Ref', 'Reason Code'];
-    const rows = reconciliationResult.expectedOutput.map(row => [
-      row.department || 'nan',
-      row.balance_pool || '',
+    const headers = [
+      "Department",
+      "Balance Pool",
+      "Security ISIN",
+      "Ledger or Statement Break",
+      "Direction",
+      "Quantity",
+      "Amount",
+      "Currency",
+      "ValueDate",
+      "Our Settlement Ref",
+      "Reason Code",
+    ];
+    const rows = reconciliationResult.expectedOutput.map((row) => [
+      row.department || "nan",
+      row.balance_pool || "",
       row.security_isin,
       row.ledger_or_statement_break,
       row.direction,
@@ -66,39 +71,39 @@ export function AgentAnalysisPanel({ state }: AgentAnalysisPanelProps) {
       row.currency,
       row.value_date,
       row.our_settlement_ref,
-      row.reason_code
+      row.reason_code,
     ]);
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = 'expected_output.csv';
+    a.download = "expected_output.csv";
     a.click();
     URL.revokeObjectURL(url);
-    toast.success('Expected output CSV downloaded');
+    toast.success("Expected output CSV downloaded");
   };
 
   const steps = [
-    { id: 'data_quality', label: 'Data Quality', icon: CheckCircle },
-    { id: 'schema_analysis', label: 'Schema', icon: Database },
-    { id: 'reconciliation', label: 'Recon', icon: GitCompare },
-    { id: 'generate_etl', label: 'ETL', icon: Code },
+    { id: "data_quality", label: "Data Quality", icon: CheckCircle },
+    { id: "schema_analysis", label: "Schema", icon: Database },
+    { id: "reconciliation", label: "Recon", icon: GitCompare },
+    { id: "generate_etl", label: "ETL", icon: Code },
   ];
 
   const getStepStatus = (stepId: string) => {
-    const stepOrder = ['data_quality', 'schema_analysis', 'reconciliation', 'generate_etl', 'complete'];
+    const stepOrder = ["data_quality", "schema_analysis", "reconciliation", "generate_etl", "complete"];
     const currentIndex = stepOrder.indexOf(currentStep);
     const stepIndex = stepOrder.indexOf(stepId);
-    
-    if (currentStep === stepId && isAnalyzing) return 'active';
-    if (stepIndex < currentIndex || currentStep === 'complete') return 'complete';
-    return 'pending';
+
+    if (currentStep === stepId && isAnalyzing) return "active";
+    if (stepIndex < currentIndex || currentStep === "complete") return "complete";
+    return "pending";
   };
 
   const getExceptionDescription = (code: ExceptionCode): string => {
-    const def = EXCEPTION_DEFINITIONS.find(d => d.code === code);
-    return def?.category || 'OTHER';
+    const def = EXCEPTION_DEFINITIONS.find((d) => d.code === code);
+    return def?.category || "OTHER";
   };
 
   return (
@@ -108,9 +113,7 @@ export function AgentAnalysisPanel({ state }: AgentAnalysisPanelProps) {
           <Bot className="h-5 w-5 text-primary" />
           AI Agent Analysis
         </CardTitle>
-        <CardDescription>
-          Automated data quality, schema analysis, reconciliation, and ETL generation
-        </CardDescription>
+        <CardDescription>Automated data quality, schema analysis, reconciliation, and ETL generation</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Progress Steps */}
@@ -123,34 +126,39 @@ export function AgentAnalysisPanel({ state }: AgentAnalysisPanelProps) {
                 <div className="flex flex-col items-center">
                   <div
                     className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${
-                      status === 'active'
-                        ? 'border-primary bg-primary/20 animate-pulse'
-                        : status === 'complete'
-                        ? 'border-success bg-success/20'
-                        : 'border-muted bg-muted/20'
+                      status === "active"
+                        ? "border-primary bg-primary/20 animate-pulse"
+                        : status === "complete"
+                          ? "border-success bg-success/20"
+                          : "border-muted bg-muted/20"
                     }`}
                   >
-                    {status === 'active' ? (
+                    {status === "active" ? (
                       <Loader2 className="h-5 w-5 text-primary animate-spin" />
-                    ) : status === 'complete' ? (
+                    ) : status === "complete" ? (
                       <CheckCircle className="h-5 w-5 text-success" />
                     ) : (
                       <Icon className="h-5 w-5 text-muted-foreground" />
                     )}
                   </div>
-                  <span className={`text-xs mt-1 ${
-                    status === 'active' ? 'text-primary font-medium' :
-                    status === 'complete' ? 'text-success' : 'text-muted-foreground'
-                  }`}>
+                  <span
+                    className={`text-xs mt-1 ${
+                      status === "active"
+                        ? "text-primary font-medium"
+                        : status === "complete"
+                          ? "text-success"
+                          : "text-muted-foreground"
+                    }`}
+                  >
                     {step.label}
                   </span>
                 </div>
                 {index < steps.length - 1 && (
-                  <div className={`w-12 h-0.5 mx-2 ${
-                    getStepStatus(steps[index + 1].id) !== 'pending' 
-                      ? 'bg-success' 
-                      : 'bg-muted'
-                  }`} />
+                  <div
+                    className={`w-12 h-0.5 mx-2 ${
+                      getStepStatus(steps[index + 1].id) !== "pending" ? "bg-success" : "bg-muted"
+                    }`}
+                  />
                 )}
               </div>
             );
@@ -182,15 +190,9 @@ export function AgentAnalysisPanel({ state }: AgentAnalysisPanelProps) {
                   <TableBody>
                     {reconciliationResult.summary?.map((item, i) => (
                       <TableRow key={i}>
-                        <TableCell className="font-mono font-medium text-primary">
-                          {item.exceptionCode}
-                        </TableCell>
-                        <TableCell className="text-foreground">
-                          {item.exceptionDescription}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-foreground">
-                          {item.count}
-                        </TableCell>
+                        <TableCell className="font-mono font-medium text-primary">{item.exceptionCode}</TableCell>
+                        <TableCell className="text-foreground">{item.exceptionDescription}</TableCell>
+                        <TableCell className="text-right font-mono text-foreground">{item.count}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -245,11 +247,13 @@ export function AgentAnalysisPanel({ state }: AgentAnalysisPanelProps) {
                         <TableCell className="font-mono text-primary">{record.exception_code}</TableCell>
                         <TableCell className="text-foreground">{record.reason_code}</TableCell>
                         <TableCell>
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${
-                            record.match_status === 'MATCHED' 
-                              ? 'bg-success/20 text-success' 
-                              : 'bg-destructive/20 text-destructive'
-                          }`}>
+                          <span
+                            className={`px-2 py-1 rounded text-xs font-medium ${
+                              record.match_status === "MATCHED"
+                                ? "bg-success/20 text-success"
+                                : "bg-destructive/20 text-destructive"
+                            }`}
+                          >
                             {record.match_status}
                           </span>
                         </TableCell>
@@ -258,7 +262,7 @@ export function AgentAnalysisPanel({ state }: AgentAnalysisPanelProps) {
                         </TableCell>
                         <TableCell className="font-mono text-foreground">{record.transaction_ref}</TableCell>
                         <TableCell className="font-mono text-info">{record.ledger_swiftref}</TableCell>
-                        <TableCell className="font-mono text-info">{record.settlement_swiftref || 'None'}</TableCell>
+                        <TableCell className="font-mono text-info">{record.settlement_swiftref || "None"}</TableCell>
                         <TableCell className="font-mono text-foreground">{record.isin}</TableCell>
                         <TableCell className="text-right font-mono text-foreground">{record.quantity}</TableCell>
                         <TableCell className="text-right font-mono text-foreground">{record.amount}</TableCell>
@@ -275,7 +279,10 @@ export function AgentAnalysisPanel({ state }: AgentAnalysisPanelProps) {
               {/* Exception Counts */}
               <div className="flex flex-wrap gap-2 mb-4">
                 {reconciliationResult.exceptions?.exceptionCounts?.map((ec, i) => (
-                  <div key={i} className="px-3 py-2 rounded-lg bg-secondary/50 border border-border flex items-center gap-2">
+                  <div
+                    key={i}
+                    className="px-3 py-2 rounded-lg bg-secondary/50 border border-border flex items-center gap-2"
+                  >
                     <span className="font-mono font-bold text-primary">{ec.code}</span>
                     <span className="text-muted-foreground">:</span>
                     <span className="font-mono text-foreground">{ec.count}</span>
@@ -307,11 +314,13 @@ export function AgentAnalysisPanel({ state }: AgentAnalysisPanelProps) {
                         <TableCell className="font-mono text-primary">{record.exception_code}</TableCell>
                         <TableCell className="text-foreground">{record.reason_code}</TableCell>
                         <TableCell>
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${
-                            record.match_status === 'MATCHED' 
-                              ? 'bg-success/20 text-success' 
-                              : 'bg-destructive/20 text-destructive'
-                          }`}>
+                          <span
+                            className={`px-2 py-1 rounded text-xs font-medium ${
+                              record.match_status === "MATCHED"
+                                ? "bg-success/20 text-success"
+                                : "bg-destructive/20 text-destructive"
+                            }`}
+                          >
                             {record.match_status}
                           </span>
                         </TableCell>
@@ -320,7 +329,7 @@ export function AgentAnalysisPanel({ state }: AgentAnalysisPanelProps) {
                         </TableCell>
                         <TableCell className="font-mono text-foreground">{record.transaction_ref}</TableCell>
                         <TableCell className="font-mono text-info">{record.ledger_swiftref}</TableCell>
-                        <TableCell className="font-mono text-info">{record.settlement_swiftref || 'None'}</TableCell>
+                        <TableCell className="font-mono text-info">{record.settlement_swiftref || "None"}</TableCell>
                         <TableCell className="font-mono text-foreground">{record.isin}</TableCell>
                         <TableCell className="text-right font-mono text-foreground">{record.quantity}</TableCell>
                         <TableCell className="text-right font-mono text-foreground">{record.amount}</TableCell>
@@ -332,38 +341,40 @@ export function AgentAnalysisPanel({ state }: AgentAnalysisPanelProps) {
               </ScrollArea>
 
               {/* OTHER Exceptions Section */}
-              {reconciliationResult.exceptions?.otherExceptions && 
-               reconciliationResult.exceptions.otherExceptions.length > 0 && (
-                <div className="mt-4">
-                  <h4 className="text-lg font-medium text-foreground mb-2">OTHER Exceptions (Agent Explanation)</h4>
-                  <ScrollArea className="h-40">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-foreground">Transaction Ref</TableHead>
-                          <TableHead className="text-foreground">Ledger Index</TableHead>
-                          <TableHead className="text-foreground">Settlement Index</TableHead>
-                          <TableHead className="text-foreground">Other Subtype</TableHead>
-                          <TableHead className="text-foreground">Other Description</TableHead>
-                          <TableHead className="text-foreground">Reason Code</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {reconciliationResult.exceptions.otherExceptions.map((ex, i) => (
-                          <TableRow key={i}>
-                            <TableCell className="font-mono text-primary">{ex.transaction_ref}</TableCell>
-                            <TableCell className="font-mono text-foreground">{ex.ledger_index}</TableCell>
-                            <TableCell className="font-mono text-foreground">{ex.settlement_index ?? 'None'}</TableCell>
-                            <TableCell className="text-warning">{ex.other_subtype}</TableCell>
-                            <TableCell className="text-foreground text-sm max-w-md">{ex.other_description}</TableCell>
-                            <TableCell className="font-mono text-foreground">{ex.reason_code}</TableCell>
+              {reconciliationResult.exceptions?.otherExceptions &&
+                reconciliationResult.exceptions.otherExceptions.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="text-lg font-medium text-foreground mb-2">OTHER Exceptions (Agent Explanation)</h4>
+                    <ScrollArea className="h-40">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-foreground">Transaction Ref</TableHead>
+                            <TableHead className="text-foreground">Ledger Index</TableHead>
+                            <TableHead className="text-foreground">Settlement Index</TableHead>
+                            <TableHead className="text-foreground">Other Subtype</TableHead>
+                            <TableHead className="text-foreground">Other Description</TableHead>
+                            <TableHead className="text-foreground">Reason Code</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </ScrollArea>
-                </div>
-              )}
+                        </TableHeader>
+                        <TableBody>
+                          {reconciliationResult.exceptions.otherExceptions.map((ex, i) => (
+                            <TableRow key={i}>
+                              <TableCell className="font-mono text-primary">{ex.transaction_ref}</TableCell>
+                              <TableCell className="font-mono text-foreground">{ex.ledger_index}</TableCell>
+                              <TableCell className="font-mono text-foreground">
+                                {ex.settlement_index ?? "None"}
+                              </TableCell>
+                              <TableCell className="text-warning">{ex.other_subtype}</TableCell>
+                              <TableCell className="text-foreground text-sm max-w-md">{ex.other_description}</TableCell>
+                              <TableCell className="font-mono text-foreground">{ex.reason_code}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </ScrollArea>
+                  </div>
+                )}
             </TabsContent>
 
             {/* Expected Output Tab */}
@@ -395,8 +406,8 @@ export function AgentAnalysisPanel({ state }: AgentAnalysisPanelProps) {
                   <TableBody>
                     {reconciliationResult.expectedOutput?.map((row, i) => (
                       <TableRow key={i}>
-                        <TableCell className="text-muted-foreground">{row.department || 'nan'}</TableCell>
-                        <TableCell className="text-foreground">{row.balance_pool || ''}</TableCell>
+                        <TableCell className="text-muted-foreground">{row.department || "nan"}</TableCell>
+                        <TableCell className="text-foreground">{row.balance_pool || ""}</TableCell>
                         <TableCell className="font-mono text-primary">{row.security_isin}</TableCell>
                         <TableCell className="text-foreground">{row.ledger_or_statement_break}</TableCell>
                         <TableCell className="text-foreground">{row.direction}</TableCell>
@@ -439,12 +450,10 @@ export function AgentAnalysisPanel({ state }: AgentAnalysisPanelProps) {
                       <p className="text-2xl font-bold font-mono text-foreground">
                         {dataQuality.summary?.totalChecks || 0}
                       </p>
-                      <p className="text-xs text-muted-foreground">Total Checks</p>
+                      <p className="text-xs text-muted-foreground">Total Attributes</p>
                     </div>
                     <div className="p-3 rounded-lg bg-success/10 text-center">
-                      <p className="text-2xl font-bold font-mono text-success">
-                        {dataQuality.summary?.passed || 0}
-                      </p>
+                      <p className="text-2xl font-bold font-mono text-success">{dataQuality.summary?.passed || 0}</p>
                       <p className="text-xs text-muted-foreground">Passed</p>
                     </div>
                     <div className="p-3 rounded-lg bg-destructive/10 text-center">
@@ -460,7 +469,7 @@ export function AgentAnalysisPanel({ state }: AgentAnalysisPanelProps) {
                       <p className="text-xs text-muted-foreground">Critical</p>
                     </div>
                   </div>
-                  
+
                   <ScrollArea className="h-64">
                     <div className="space-y-2">
                       {dataQuality.checks?.map((check, i) => (
@@ -468,18 +477,18 @@ export function AgentAnalysisPanel({ state }: AgentAnalysisPanelProps) {
                           key={check.id || i}
                           className={`p-3 rounded-lg border ${
                             check.passed
-                              ? 'bg-success/10 border-success/30'
-                              : check.severity === 'error'
-                              ? 'bg-destructive/10 border-destructive/30'
-                              : 'bg-warning/10 border-warning/30'
+                              ? "bg-success/10 border-success/30"
+                              : check.severity === "error"
+                                ? "bg-destructive/10 border-destructive/30"
+                                : "bg-warning/10 border-warning/30"
                           }`}
                         >
                           <div className="flex items-start gap-2">
                             {check.passed ? (
                               <CheckCircle className="h-4 w-4 text-success mt-0.5" />
-                            ) : check.severity === 'error' ? (
+                            ) : check.severity === "error" ? (
                               <XCircle className="h-4 w-4 text-destructive mt-0.5" />
-                            ) : check.severity === 'warning' ? (
+                            ) : check.severity === "warning" ? (
                               <AlertTriangle className="h-4 w-4 text-warning mt-0.5" />
                             ) : (
                               <Info className="h-4 w-4 text-info mt-0.5" />
@@ -488,9 +497,7 @@ export function AgentAnalysisPanel({ state }: AgentAnalysisPanelProps) {
                               <p className="text-sm font-medium text-foreground">{check.name}</p>
                               <p className="text-xs text-muted-foreground">{check.details}</p>
                               {check.recommendation && (
-                                <p className="text-xs text-primary mt-1">
-                                  💡 {check.recommendation}
-                                </p>
+                                <p className="text-xs text-primary mt-1">💡 {check.recommendation}</p>
                               )}
                               {check.affectedRows !== undefined && check.affectedRows > 0 && (
                                 <p className="text-xs text-muted-foreground mt-1">
@@ -516,20 +523,25 @@ export function AgentAnalysisPanel({ state }: AgentAnalysisPanelProps) {
                       <h4 className="text-sm font-medium text-foreground mb-2">Column Mappings</h4>
                       <div className="space-y-2">
                         {schemaAnalysis.mappings.map((mapping, i) => (
-                          <div key={i} className="p-2 rounded bg-secondary/50 border border-border/50 flex items-center justify-between">
+                          <div
+                            key={i}
+                            className="p-2 rounded bg-secondary/50 border border-border/50 flex items-center justify-between"
+                          >
                             <div className="flex items-center gap-2">
                               <span className="font-mono text-xs text-primary">{mapping.ledgerColumn}</span>
                               <span className="text-muted-foreground">→</span>
                               <span className="font-mono text-xs text-info">{mapping.statementColumn}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className={`text-xs px-2 py-0.5 rounded ${
-                                mapping.matchConfidence > 0.8 
-                                  ? 'bg-success/20 text-success' 
-                                  : mapping.matchConfidence > 0.5 
-                                  ? 'bg-warning/20 text-warning'
-                                  : 'bg-destructive/20 text-destructive'
-                              }`}>
+                              <span
+                                className={`text-xs px-2 py-0.5 rounded ${
+                                  mapping.matchConfidence > 0.8
+                                    ? "bg-success/20 text-success"
+                                    : mapping.matchConfidence > 0.5
+                                      ? "bg-warning/20 text-warning"
+                                      : "bg-destructive/20 text-destructive"
+                                }`}
+                              >
                                 {Math.round(mapping.matchConfidence * 100)}% match
                               </span>
                               {mapping.transformationNeeded && (
@@ -580,19 +592,11 @@ export function AgentAnalysisPanel({ state }: AgentAnalysisPanelProps) {
                   <div className="flex items-center justify-between">
                     <h4 className="text-sm font-medium text-foreground">Oracle PL/SQL ETL Script</h4>
                     <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => copyToClipboard(etlScript.script)}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => copyToClipboard(etlScript.script)}>
                         <Copy className="h-3 w-3 mr-1" />
                         Copy
                       </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={downloadScript}
-                      >
+                      <Button variant="outline" size="sm" onClick={downloadScript}>
                         <Download className="h-3 w-3 mr-1" />
                         Download
                       </Button>
@@ -627,9 +631,7 @@ export function AgentAnalysisPanel({ state }: AgentAnalysisPanelProps) {
                   )}
 
                   <ScrollArea className="h-64 rounded border border-border bg-background">
-                    <pre className="p-4 text-xs font-mono text-foreground whitespace-pre-wrap">
-                      {etlScript.script}
-                    </pre>
+                    <pre className="p-4 text-xs font-mono text-foreground whitespace-pre-wrap">{etlScript.script}</pre>
                   </ScrollArea>
 
                   {etlScript.executionOrder?.length > 0 && (
@@ -651,7 +653,7 @@ export function AgentAnalysisPanel({ state }: AgentAnalysisPanelProps) {
         )}
 
         {/* Idle State */}
-        {currentStep === 'idle' && !isAnalyzing && (
+        {currentStep === "idle" && !isAnalyzing && (
           <div className="text-center py-8 text-muted-foreground">
             <Bot className="h-12 w-12 mx-auto mb-3 opacity-50" />
             <p>Upload both ledger and statement files to start AI analysis</p>

@@ -1,33 +1,26 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { AgentState } from '@/hooks/useDataAgent';
-import { 
-  CheckCircle, 
-  XCircle, 
-  AlertTriangle, 
-  Info, 
-  Loader2, 
-  Database, 
-  Code, 
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { AgentState } from "@/hooks/useDataAgent";
+import {
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  Info,
+  Loader2,
+  Database,
+  Code,
   Copy,
   Download,
   Bot,
   FileInput,
   ShieldCheck,
-  Link2
-} from 'lucide-react';
-import { toast } from 'sonner';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
+  Link2,
+} from "lucide-react";
+import { toast } from "sonner";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface AdminAgentPanelProps {
   state: AgentState;
@@ -37,28 +30,28 @@ interface AdminAgentPanelProps {
 // Helper function to parse CSV and infer schema from ledger data
 function parseLedgerSchema(csvData: string): { columnName: string; inferredType: string }[] {
   if (!csvData) return [];
-  
-  const lines = csvData.trim().split('\n');
+
+  const lines = csvData.trim().split("\n");
   if (lines.length < 2) return [];
-  
-  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-  const firstDataRow = lines[1].split(',').map(v => v.trim().replace(/"/g, ''));
-  
+
+  const headers = lines[0].split(",").map((h) => h.trim().replace(/"/g, ""));
+  const firstDataRow = lines[1].split(",").map((v) => v.trim().replace(/"/g, ""));
+
   return headers.map((header, index) => {
-    const sampleValue = firstDataRow[index] || '';
-    let inferredType = 'STRING';
-    
+    const sampleValue = firstDataRow[index] || "";
+    let inferredType = "STRING";
+
     // Infer type from sample value
     if (/^\d{1,2}[-\/]\w{3}[-\/]?\d{0,4}$/.test(sampleValue) || /^\d{4}-\d{2}-\d{2}$/.test(sampleValue)) {
-      inferredType = 'DATE';
+      inferredType = "DATE";
     } else if (/^-?\d+\.\d+$/.test(sampleValue)) {
-      inferredType = 'DECIMAL';
+      inferredType = "DECIMAL";
     } else if (/^-?\d+$/.test(sampleValue)) {
-      inferredType = 'INTEGER';
-    } else if (sampleValue.toLowerCase() === 'true' || sampleValue.toLowerCase() === 'false') {
-      inferredType = 'BOOLEAN';
+      inferredType = "INTEGER";
+    } else if (sampleValue.toLowerCase() === "true" || sampleValue.toLowerCase() === "false") {
+      inferredType = "BOOLEAN";
     }
-    
+
     return { columnName: header, inferredType };
   });
 }
@@ -66,58 +59,65 @@ function parseLedgerSchema(csvData: string): { columnName: string; inferredType:
 export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
   const { currentStep, isAnalyzing, dataQuality, schemaAnalysis, etlScript } = state;
   const [approvedMappings, setApprovedMappings] = useState<Set<number>>(new Set());
-  
+
   // Parse ledger schema from the uploaded ledger data
-  const ledgerSchema = parseLedgerSchema(ledgerData || '');
+  const ledgerSchema = parseLedgerSchema(ledgerData || "");
 
   const handleApproveMapping = (index: number) => {
-    setApprovedMappings(prev => new Set([...prev, index]));
-    toast.success('Mapping approved and set to 100% match');
+    setApprovedMappings((prev) => new Set([...prev, index]));
+    toast.success("Mapping approved and set to 100% match");
   };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast.success('Copied to clipboard');
+    toast.success("Copied to clipboard");
   };
 
   // Get the ETL script content, falling back to rawResponse if script is undefined
   const getEtlContent = () => {
     if (etlScript?.script) return etlScript.script;
     if (etlScript?.rawResponse) return etlScript.rawResponse;
-    return '';
+    return "";
   };
 
   const downloadScript = () => {
     const content = getEtlContent();
     if (!content) return;
-    const blob = new Blob([content], { type: 'text/plain' });
+    const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = 'oracle_etl_script.sql';
+    a.download = "oracle_etl_script.sql";
     a.click();
     URL.revokeObjectURL(url);
-    toast.success('ETL script downloaded');
+    toast.success("ETL script downloaded");
   };
 
   const steps = [
-    { id: 'data_quality', label: 'Data Ingestion', icon: FileInput },
-    { id: 'schema_analysis', label: 'Schema Mapping', icon: Database },
-    { id: 'data_quality_check', label: 'Data Quality', icon: ShieldCheck },
-    { id: 'generate_etl', label: 'ETL Script', icon: Code },
-    { id: 'auto_match', label: 'Auto-match Rules', icon: Link2 },
+    { id: "data_quality", label: "Data Ingestion", icon: FileInput },
+    { id: "schema_analysis", label: "Schema Mapping", icon: Database },
+    { id: "data_quality_check", label: "Data Quality", icon: ShieldCheck },
+    { id: "generate_etl", label: "ETL Script", icon: Code },
+    { id: "auto_match", label: "Auto-match Rules", icon: Link2 },
   ];
 
   const getStepStatus = (stepId: string) => {
-    const stepOrder = ['data_quality', 'schema_analysis', 'data_quality_check', 'generate_etl', 'auto_match', 'complete'];
+    const stepOrder = [
+      "data_quality",
+      "schema_analysis",
+      "data_quality_check",
+      "generate_etl",
+      "auto_match",
+      "complete",
+    ];
     const currentIndex = stepOrder.indexOf(currentStep);
     const stepIndex = stepOrder.indexOf(stepId);
-    
-    if (currentStep === stepId && isAnalyzing) return 'active';
-    if (stepIndex < currentIndex) return 'complete';
+
+    if (currentStep === stepId && isAnalyzing) return "active";
+    if (stepIndex < currentIndex) return "complete";
     // Auto-match is complete only when ETL is complete
-    if (stepId === 'auto_match' && etlScript) return 'complete';
-    return 'pending';
+    if (stepId === "auto_match" && etlScript) return "complete";
+    return "pending";
   };
 
   const hasAnyData = dataQuality || schemaAnalysis || etlScript;
@@ -144,34 +144,39 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                 <div className="flex flex-col items-center">
                   <div
                     className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${
-                      status === 'active'
-                        ? 'border-primary bg-primary/20 animate-pulse'
-                        : status === 'complete'
-                        ? 'border-success bg-success/20'
-                        : 'border-muted bg-muted/20'
+                      status === "active"
+                        ? "border-primary bg-primary/20 animate-pulse"
+                        : status === "complete"
+                          ? "border-success bg-success/20"
+                          : "border-muted bg-muted/20"
                     }`}
                   >
-                    {status === 'active' ? (
+                    {status === "active" ? (
                       <Loader2 className="h-5 w-5 text-primary animate-spin" />
-                    ) : status === 'complete' ? (
+                    ) : status === "complete" ? (
                       <CheckCircle className="h-5 w-5 text-success" />
                     ) : (
                       <Icon className="h-5 w-5 text-muted-foreground" />
                     )}
                   </div>
-                  <span className={`text-xs mt-1 ${
-                    status === 'active' ? 'text-primary font-medium' :
-                    status === 'complete' ? 'text-success' : 'text-muted-foreground'
-                  }`}>
+                  <span
+                    className={`text-xs mt-1 ${
+                      status === "active"
+                        ? "text-primary font-medium"
+                        : status === "complete"
+                          ? "text-success"
+                          : "text-muted-foreground"
+                    }`}
+                  >
                     {step.label}
                   </span>
                 </div>
                 {index < steps.length - 1 && (
-                  <div className={`w-12 h-0.5 mx-2 ${
-                    getStepStatus(steps[index + 1].id) !== 'pending' 
-                      ? 'bg-success' 
-                      : 'bg-muted'
-                  }`} />
+                  <div
+                    className={`w-12 h-0.5 mx-2 ${
+                      getStepStatus(steps[index + 1].id) !== "pending" ? "bg-success" : "bg-muted"
+                    }`}
+                  />
                 )}
               </div>
             );
@@ -213,9 +218,11 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                 </h4>
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                      dataQuality ? 'bg-success/20' : 'bg-muted/20'
-                    }`}>
+                    <div
+                      className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                        dataQuality ? "bg-success/20" : "bg-muted/20"
+                      }`}
+                    >
                       {dataQuality ? (
                         <CheckCircle className="h-4 w-4 text-success" />
                       ) : (
@@ -226,17 +233,21 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                       <p className="text-sm font-medium text-foreground">Ledger File Ingested</p>
                       <p className="text-xs text-muted-foreground">CSV parsed and validated</p>
                     </div>
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      dataQuality ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'
-                    }`}>
-                      {dataQuality ? 'Complete' : 'Pending'}
+                    <span
+                      className={`text-xs px-2 py-1 rounded ${
+                        dataQuality ? "bg-success/20 text-success" : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {dataQuality ? "Complete" : "Pending"}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                      dataQuality ? 'bg-success/20' : 'bg-muted/20'
-                    }`}>
+                    <div
+                      className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                        dataQuality ? "bg-success/20" : "bg-muted/20"
+                      }`}
+                    >
                       {dataQuality ? (
                         <CheckCircle className="h-4 w-4 text-success" />
                       ) : (
@@ -247,17 +258,21 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                       <p className="text-sm font-medium text-foreground">Statement File Ingested</p>
                       <p className="text-xs text-muted-foreground">CSV parsed and validated</p>
                     </div>
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      dataQuality ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'
-                    }`}>
-                      {dataQuality ? 'Complete' : 'Pending'}
+                    <span
+                      className={`text-xs px-2 py-1 rounded ${
+                        dataQuality ? "bg-success/20 text-success" : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {dataQuality ? "Complete" : "Pending"}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                      schemaAnalysis ? 'bg-success/20' : 'bg-muted/20'
-                    }`}>
+                    <div
+                      className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                        schemaAnalysis ? "bg-success/20" : "bg-muted/20"
+                      }`}
+                    >
                       {schemaAnalysis ? (
                         <CheckCircle className="h-4 w-4 text-success" />
                       ) : (
@@ -268,17 +283,21 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                       <p className="text-sm font-medium text-foreground">Schema Detected</p>
                       <p className="text-xs text-muted-foreground">Column types and mappings identified</p>
                     </div>
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      schemaAnalysis ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'
-                    }`}>
-                      {schemaAnalysis ? 'Complete' : 'Pending'}
+                    <span
+                      className={`text-xs px-2 py-1 rounded ${
+                        schemaAnalysis ? "bg-success/20 text-success" : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {schemaAnalysis ? "Complete" : "Pending"}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                      etlScript ? 'bg-success/20' : 'bg-muted/20'
-                    }`}>
+                    <div
+                      className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                        etlScript ? "bg-success/20" : "bg-muted/20"
+                      }`}
+                    >
                       {etlScript ? (
                         <CheckCircle className="h-4 w-4 text-success" />
                       ) : (
@@ -289,15 +308,16 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                       <p className="text-sm font-medium text-foreground">ETL Script Generated</p>
                       <p className="text-xs text-muted-foreground">Oracle PL/SQL script ready</p>
                     </div>
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      etlScript ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'
-                    }`}>
-                      {etlScript ? 'Complete' : 'Pending'}
+                    <span
+                      className={`text-xs px-2 py-1 rounded ${
+                        etlScript ? "bg-success/20 text-success" : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {etlScript ? "Complete" : "Pending"}
                     </span>
                   </div>
                 </div>
               </div>
-
             </TabsContent>
 
             {/* Schema Mapping Tab */}
@@ -315,32 +335,38 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                           const isApproved = approvedMappings.has(i);
                           const displayConfidence = isApproved ? 1 : mapping.matchConfidence;
                           const needsApproval = !isApproved && mapping.matchConfidence < 0.9;
-                          
+
                           // Check for datatype mismatch between statement and ledger schema
                           const statementCol = schemaAnalysis.statementSchema?.find(
-                            s => s.columnName.toLowerCase() === mapping.statementColumn.toLowerCase()
+                            (s) => s.columnName.toLowerCase() === mapping.statementColumn.toLowerCase(),
                           );
                           const ledgerCol = schemaAnalysis.ledgerSchema?.find(
-                            t => t.columnName?.toLowerCase() === mapping.ledgerColumn.toLowerCase()
+                            (t) => t.columnName?.toLowerCase() === mapping.ledgerColumn.toLowerCase(),
                           );
-                          const hasTypeMismatch = statementCol && ledgerCol && 
+                          const hasTypeMismatch =
+                            statementCol &&
+                            ledgerCol &&
                             statementCol.inferredType?.toUpperCase() !== ledgerCol.inferredType?.toUpperCase();
                           const showTransformNeeded = mapping.transformationNeeded || hasTypeMismatch;
-                          
+
                           // Generate reasoning for transform
-                          let transformReason = mapping.transformationRule || '';
+                          let transformReason = mapping.transformationRule || "";
                           if (hasTypeMismatch && !transformReason) {
-                            transformReason = `Statement field is ${statementCol?.inferredType || 'unknown'} but Target expects ${ledgerCol?.inferredType || 'unknown'}`;
+                            transformReason = `Statement field is ${statementCol?.inferredType || "unknown"} but Target expects ${ledgerCol?.inferredType || "unknown"}`;
                           }
-                          
+
                           return (
                             <div key={i} className="p-2 rounded bg-background/50 border border-border/50">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                  <span className="font-mono text-xs text-info bg-info/10 px-2 py-1 rounded">{mapping.statementColumn}</span>
+                                  <span className="font-mono text-xs text-info bg-info/10 px-2 py-1 rounded">
+                                    {mapping.statementColumn}
+                                  </span>
                                   <span className="text-muted-foreground text-xs">(Statement)</span>
                                   <span className="text-muted-foreground">→</span>
-                                  <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-1 rounded">{mapping.ledgerColumn}</span>
+                                  <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-1 rounded">
+                                    {mapping.ledgerColumn}
+                                  </span>
                                   <span className="text-muted-foreground text-xs">(Target)</span>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -350,13 +376,15 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                                       Approved (100% match)
                                     </span>
                                   ) : (
-                                    <span className={`text-xs px-2 py-0.5 rounded ${
-                                      displayConfidence > 0.8 
-                                        ? 'bg-success/20 text-success' 
-                                        : displayConfidence > 0.5 
-                                        ? 'bg-warning/20 text-warning'
-                                        : 'bg-destructive/20 text-destructive'
-                                    }`}>
+                                    <span
+                                      className={`text-xs px-2 py-0.5 rounded ${
+                                        displayConfidence > 0.8
+                                          ? "bg-success/20 text-success"
+                                          : displayConfidence > 0.5
+                                            ? "bg-warning/20 text-warning"
+                                            : "bg-destructive/20 text-destructive"
+                                      }`}
+                                    >
                                       {Math.round(displayConfidence * 100)}% match
                                     </span>
                                   )}
@@ -381,7 +409,9 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                               {(() => {
                                 const reasons: string[] = [];
                                 if (needsApproval && !approvedMappings.has(i)) {
-                                  reasons.push(`Low match confidence (${Math.round(displayConfidence * 100)}%) - column name similarity is weak, manual verification recommended`);
+                                  reasons.push(
+                                    `Low match confidence (${Math.round(displayConfidence * 100)}%) - column name similarity is weak, manual verification recommended`,
+                                  );
                                 }
                                 if (showTransformNeeded && transformReason) {
                                   reasons.push(transformReason);
@@ -390,7 +420,7 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                                 return (
                                   <div className="mt-2 text-xs text-muted-foreground bg-muted/30 px-2 py-1 rounded">
                                     <span className="text-primary font-medium">Reason: </span>
-                                    {reasons.join('. Additionally, ')}
+                                    {reasons.join(". Additionally, ")}
                                   </div>
                                 );
                               })()}
@@ -419,9 +449,13 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                                 </span>
                               </div>
                               <div className="flex items-center gap-2 text-xs">
-                                <span className="text-destructive line-through bg-destructive/10 px-2 py-0.5 rounded">{correction.currentValue}</span>
+                                <span className="text-destructive line-through bg-destructive/10 px-2 py-0.5 rounded">
+                                  {correction.currentValue}
+                                </span>
                                 <span className="text-muted-foreground">→</span>
-                                <span className="text-success bg-success/10 px-2 py-0.5 rounded">{correction.suggestedValue}</span>
+                                <span className="text-success bg-success/10 px-2 py-0.5 rounded">
+                                  {correction.suggestedValue}
+                                </span>
                               </div>
                               <p className="text-xs text-muted-foreground mt-1">{correction.reason}</p>
                             </div>
@@ -477,22 +511,18 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                       <p className="text-2xl font-bold font-mono text-foreground">
                         {dataQuality.summary?.totalChecks || 0}
                       </p>
-                      <p className="text-xs text-muted-foreground">Total Checks</p>
+                      <p className="text-xs text-muted-foreground">Total Attributes</p>
                     </div>
                     <div className="p-3 rounded-lg bg-success/10 text-center">
-                      <p className="text-2xl font-bold font-mono text-success">
-                        {dataQuality.summary?.passed || 0}
-                      </p>
+                      <p className="text-2xl font-bold font-mono text-success">{dataQuality.summary?.passed || 0}</p>
                       <p className="text-xs text-muted-foreground">Passed</p>
                     </div>
                     <div className="p-3 rounded-lg bg-warning/10 text-center">
-                      <p className="text-2xl font-bold font-mono text-warning">
-                        {dataQuality.summary?.failed || 0}
-                      </p>
+                      <p className="text-2xl font-bold font-mono text-warning">{dataQuality.summary?.failed || 0}</p>
                       <p className="text-xs text-muted-foreground">Warnings</p>
                     </div>
                   </div>
-                  
+
                   <ScrollArea className="h-48">
                     <div className="space-y-2">
                       {dataQuality.checks?.map((check, i) => (
@@ -500,18 +530,18 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                           key={check.id || i}
                           className={`p-3 rounded-lg border ${
                             check.passed
-                              ? 'bg-success/10 border-success/30'
-                              : check.severity === 'error'
-                              ? 'bg-destructive/10 border-destructive/30'
-                              : 'bg-warning/10 border-warning/30'
+                              ? "bg-success/10 border-success/30"
+                              : check.severity === "error"
+                                ? "bg-destructive/10 border-destructive/30"
+                                : "bg-warning/10 border-warning/30"
                           }`}
                         >
                           <div className="flex items-start gap-2">
                             {check.passed ? (
                               <CheckCircle className="h-4 w-4 text-success mt-0.5" />
-                            ) : check.severity === 'error' ? (
+                            ) : check.severity === "error" ? (
                               <XCircle className="h-4 w-4 text-destructive mt-0.5" />
-                            ) : check.severity === 'warning' ? (
+                            ) : check.severity === "warning" ? (
                               <AlertTriangle className="h-4 w-4 text-warning mt-0.5" />
                             ) : (
                               <Info className="h-4 w-4 text-info mt-0.5" />
@@ -520,9 +550,7 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                               <p className="text-sm font-medium text-foreground">{check.name}</p>
                               <p className="text-xs text-muted-foreground">{check.details}</p>
                               {check.recommendation && (
-                                <p className="text-xs text-primary mt-1">
-                                  💡 {check.recommendation}
-                                </p>
+                                <p className="text-xs text-primary mt-1">💡 {check.recommendation}</p>
                               )}
                               {check.affectedRows !== undefined && check.affectedRows > 0 && (
                                 <p className="text-xs text-muted-foreground mt-1">
@@ -549,8 +577,8 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                       Oracle PL/SQL ETL Script (Ledger ↔ Statement)
                     </h4>
                     <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => copyToClipboard(getEtlContent())}
                         disabled={!getEtlContent()}
@@ -558,11 +586,7 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                         <Copy className="h-3 w-3 mr-1" />
                         Copy
                       </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={downloadScript}
-                      >
+                      <Button variant="outline" size="sm" onClick={downloadScript}>
                         <Download className="h-3 w-3 mr-1" />
                         Download .sql
                       </Button>
@@ -598,7 +622,7 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
 
                   <ScrollArea className="h-64 rounded border border-border bg-background">
                     <pre className="p-4 text-xs font-mono text-foreground whitespace-pre-wrap">
-                      {getEtlContent() || 'No script content available'}
+                      {getEtlContent() || "No script content available"}
                     </pre>
                   </ScrollArea>
 
@@ -633,27 +657,39 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                 </h4>
                 <div className="space-y-3">
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border border-border/50">
-                    <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-medium flex items-center justify-center">1</span>
+                    <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-medium flex items-center justify-center">
+                      1
+                    </span>
                     <span className="text-sm text-foreground">Match by Transaction Reference</span>
                   </div>
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border border-border/50">
-                    <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-medium flex items-center justify-center">2</span>
+                    <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-medium flex items-center justify-center">
+                      2
+                    </span>
                     <span className="text-sm text-foreground">Match by Swift Reference</span>
                   </div>
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border border-border/50">
-                    <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-medium flex items-center justify-center">3</span>
+                    <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-medium flex items-center justify-center">
+                      3
+                    </span>
                     <span className="text-sm text-foreground">Match by Settlement Status</span>
                   </div>
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border border-border/50">
-                    <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-medium flex items-center justify-center">4</span>
+                    <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-medium flex items-center justify-center">
+                      4
+                    </span>
                     <span className="text-sm text-foreground">Match by Quantity</span>
                   </div>
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border border-border/50">
-                    <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-medium flex items-center justify-center">5</span>
+                    <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-medium flex items-center justify-center">
+                      5
+                    </span>
                     <span className="text-sm text-foreground">Match by Amount</span>
                   </div>
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border border-border/50">
-                    <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-medium flex items-center justify-center">6</span>
+                    <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-medium flex items-center justify-center">
+                      6
+                    </span>
                     <span className="text-sm text-foreground">Match by Value Date</span>
                   </div>
                 </div>
@@ -683,9 +719,7 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                     <TableBody>
                       {ledgerSchema.map((col, i) => (
                         <TableRow key={i}>
-                          <TableCell className="font-mono text-xs text-primary py-1">
-                            {col.columnName}
-                          </TableCell>
+                          <TableCell className="font-mono text-xs text-primary py-1">{col.columnName}</TableCell>
                           <TableCell className="font-mono text-xs text-muted-foreground py-1">
                             {col.inferredType}
                           </TableCell>
@@ -718,9 +752,7 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                   <TableBody>
                     {schemaAnalysis.statementSchema?.map((col, i) => (
                       <TableRow key={i}>
-                        <TableCell className="font-mono text-xs text-info py-1">
-                          {col.columnName}
-                        </TableCell>
+                        <TableCell className="font-mono text-xs text-info py-1">{col.columnName}</TableCell>
                         <TableCell className="font-mono text-xs text-muted-foreground py-1">
                           {col.inferredType}
                         </TableCell>
@@ -734,7 +766,7 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
         )}
 
         {/* Idle State */}
-        {currentStep === 'idle' && !isAnalyzing && !hasAnyData && (
+        {currentStep === "idle" && !isAnalyzing && !hasAnyData && (
           <div className="text-center py-8 text-muted-foreground">
             <Bot className="h-12 w-12 mx-auto mb-3 opacity-50" />
             <p>Upload both ledger and statement files to start AI analysis</p>
