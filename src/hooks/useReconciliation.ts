@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { ReconciliationResult, ExceptionCode } from '@/types/recon';
+import { ReconciliationResult, ExceptionCode, ExceptionRecord, OtherException } from '@/types/recon';
 import { toast } from 'sonner';
 import { getOpenExceptionRecords, recordsToCSV, getBatches, BATCH_SIZE } from '@/data/sampleReconciliationData';
 
@@ -16,7 +16,7 @@ export interface ReconciliationState {
   } | null;
 }
 
-// Merge multiple reconciliation results into one
+// Merge multiple reconciliation results into one, with deduplication
 function mergeResults(results: ReconciliationResult[]): ReconciliationResult {
   const merged: ReconciliationResult = {
     summary: [],
@@ -35,7 +35,10 @@ function mergeResults(results: ReconciliationResult[]): ReconciliationResult {
   };
 
   const summaryMap = new Map<ExceptionCode, { exceptionCode: ExceptionCode; exceptionDescription: string; count: number }>();
-  const exceptionCountsMap = new Map<ExceptionCode, number>();
+  
+  // Deduplication maps using transaction_ref as key
+  const seenRecords = new Map<string, ExceptionRecord>();
+  const seenOtherExceptions = new Map<string, OtherException>();
 
   results.forEach(result => {
     // Merge summary
@@ -57,15 +60,21 @@ function mergeResults(results: ReconciliationResult[]): ReconciliationResult {
       merged.matching.matchedRecords.push(...(result.matching.matchedRecords || []));
     }
 
-    // Merge exceptions
+    // Merge exceptions WITH DEDUPLICATION by transaction_ref
     if (result.exceptions) {
-      (result.exceptions.exceptionCounts || []).forEach(ec => {
-        const code = ec.code as ExceptionCode;
-        const existing = exceptionCountsMap.get(code) || 0;
-        exceptionCountsMap.set(code, existing + ec.count);
+      (result.exceptions.records || []).forEach(record => {
+        const key = record.transaction_ref;
+        if (key && !seenRecords.has(key)) {
+          seenRecords.set(key, record);
+        }
       });
-      merged.exceptions.records.push(...(result.exceptions.records || []));
-      merged.exceptions.otherExceptions.push(...(result.exceptions.otherExceptions || []));
+      
+      (result.exceptions.otherExceptions || []).forEach(other => {
+        const key = other.transaction_ref;
+        if (key && !seenOtherExceptions.has(key)) {
+          seenOtherExceptions.set(key, other);
+        }
+      });
     }
 
     // Merge expectedOutput
@@ -73,7 +82,22 @@ function mergeResults(results: ReconciliationResult[]): ReconciliationResult {
   });
 
   merged.summary = Array.from(summaryMap.values());
-  merged.exceptions.exceptionCounts = Array.from(exceptionCountsMap.entries()).map(([code, count]) => ({ code, count }));
+  
+  // Convert deduplicated maps back to arrays
+  merged.exceptions.records = Array.from(seenRecords.values());
+  merged.exceptions.otherExceptions = Array.from(seenOtherExceptions.values());
+  
+  // Recalculate exceptionCounts from deduplicated records
+  const validCodes = ['101', '102', '103', '104', '105', '106'] as const;
+  const recountMap = new Map<ExceptionCode, number>();
+  merged.exceptions.records.forEach(r => {
+    const code = r.exception_code as ExceptionCode;
+    if (validCodes.includes(code as any)) {
+      recountMap.set(code, (recountMap.get(code) || 0) + 1);
+    }
+  });
+  merged.exceptions.exceptionCounts = Array.from(recountMap.entries())
+    .map(([code, count]) => ({ code, count }));
 
   return merged;
 }
