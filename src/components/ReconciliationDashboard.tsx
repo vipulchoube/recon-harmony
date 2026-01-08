@@ -125,6 +125,8 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
         settlement_swiftref: r.settlement_swiftref,
         isin: r.isin,
         value_date: r.value_date,
+        amount: r.amount,
+        quantity: r.quantity,
       })) || []),
   ];
 
@@ -874,8 +876,8 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
                   <div>
                     <p className="text-xs text-muted-foreground">Amount</p>
                     <p className="font-mono text-foreground">
-                      {(selectedOtherCase as any).amount != null 
-                        ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((selectedOtherCase as any).amount)
+                      {selectedOtherCase.amount != null 
+                        ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(selectedOtherCase.amount)
                         : '-'}
                     </p>
                   </div>

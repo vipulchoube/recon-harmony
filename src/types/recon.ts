@@ -274,6 +274,8 @@ export interface OtherException {
   settlement_swiftref?: string;
   isin?: string;
   value_date?: string;
+  amount?: number;
+  quantity?: number;
 }
 
 export interface ExpectedOutputRow {
