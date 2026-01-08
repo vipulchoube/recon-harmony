@@ -237,10 +237,9 @@ export function ReconLeadScreen() {
               </div>
             ))}
           </div>
-        </CardContent>
+      </CardContent>
       </Card>
-    </div>
-    
+
       {/* Main Content Grid */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Team Performance Table */}
@@ -320,5 +319,6 @@ export function ReconLeadScreen() {
           </CardContent>
         </Card>
       </div>
+    </div>
   );
 }
