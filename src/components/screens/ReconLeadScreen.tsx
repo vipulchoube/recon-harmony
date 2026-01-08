@@ -6,6 +6,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { parseCSV, sampleLedgerData, sampleStatementData } from "@/data/sampleReconciliationData";
+import { ExceptionCode } from "@/types/recon";
 
 // Auto-Match Trend data for last 6 months
 const autoMatchTrendData = [
@@ -31,14 +33,91 @@ const agingData = [
   { range: ">20 days", count: 4, color: "bg-destructive" },
 ];
 
-const exceptionsByCategory = [
-  { code: "101", category: "Feed Issue", count: 8, trend: "down" },
-  { code: "102", category: "Cancelled Trade", count: 3, trend: "stable" },
-  { code: "103", category: "Unsettled Trade", count: 12, trend: "up" },
-  { code: "104", category: "Not Settled in Market", count: 5, trend: "down" },
-  { code: "105", category: "Wrong Account", count: 7, trend: "stable" },
-  { code: "106", category: "Partial Settlement", count: 4, trend: "down" },
-];
+// Function to compute exception counts from actual data
+function computeExceptionCounts(): { code: string; category: string; count: number; trend: string }[] {
+  const ledgerRecords = parseCSV(sampleLedgerData);
+  const statementRecords = parseCSV(sampleStatementData);
+  
+  const statementMap = new Map<string, Record<string, string>>();
+  statementRecords.forEach(record => {
+    statementMap.set(record.TransactionRef, record);
+  });
+  
+  const exceptionCounts = new Map<ExceptionCode, number>();
+  
+  ledgerRecords.forEach(ledgerRecord => {
+    const transactionRef = ledgerRecord.TransactionRef;
+    const statementRecord = statementMap.get(transactionRef);
+    const tradeStatus = ledgerRecord.TradeStatus?.toUpperCase() || "";
+    const settlementStatus = ledgerRecord.SettlementStatus?.toUpperCase() || "";
+    const isin = ledgerRecord["Security ISIN"] || "";
+    const amount = parseInt(ledgerRecord.Amount || "0", 10);
+    const openAmount = parseInt(ledgerRecord["Open Amount"] || "0", 10);
+    
+    let code: ExceptionCode | null = null;
+    
+    // 101: Feed Issue - No matching statement record
+    if (!statementRecord) {
+      code = "101";
+    } else {
+      const statementState = statementRecord["Settlement State"]?.toUpperCase() || "";
+      const manualSettlement = statementRecord.ManualSettlement?.toUpperCase() || "";
+      const ledgerBalancePool = ledgerRecord.Balance_Pool || "";
+      const statementBalancePool = statementRecord.Balance_Pool || "";
+      
+      // 102: Cancelled Trade
+      if (!code && tradeStatus === "CANCELLED" && statementState === "SETTLED") {
+        code = "102";
+      }
+      // 103: Unsettled Trade
+      if (!code && settlementStatus === "OPEN" && statementState === "SETTLED") {
+        code = "103";
+      }
+      // 104: Not Settled in Market
+      if (!code && manualSettlement === "Y" && statementState !== "SETTLED") {
+        code = "104";
+      }
+      // 105: Wrong Account
+      if (!code && ledgerBalancePool && statementBalancePool && ledgerBalancePool !== statementBalancePool) {
+        code = "105";
+      }
+      // 106: Partial Settlement
+      if (!code && (settlementStatus === "PARTIALLY SETTLED" || statementState === "PARTIALLY SETTLED")) {
+        code = "106";
+      }
+      // OTHER cases
+      if (!code && (!isin || isin.trim() === "")) {
+        code = "OTHER";
+      }
+      if (!code && tradeStatus === "AMEND" && (amount === 0 || openAmount !== amount)) {
+        code = "OTHER";
+      }
+    }
+    
+    if (code) {
+      exceptionCounts.set(code, (exceptionCounts.get(code) || 0) + 1);
+    }
+  });
+  
+  const categoryLabels: Record<string, string> = {
+    "101": "Feed Issue",
+    "102": "Cancelled Trade",
+    "103": "Unsettled Trade",
+    "104": "Not Settled in Market",
+    "105": "Wrong Account",
+    "106": "Partial Settlement",
+    "OTHER": "Other",
+  };
+  
+  const trends = ["down", "stable", "up", "down", "stable", "down"];
+  
+  return ["101", "102", "103", "104", "105", "106"].map((code, index) => ({
+    code,
+    category: categoryLabels[code],
+    count: exceptionCounts.get(code as ExceptionCode) || 0,
+    trend: trends[index],
+  }));
+}
 
 const recentActivity = [
   { id: 1, action: "Case #1234 resolved", user: "Euroclear settlement team", time: "5 min ago", type: "resolved" },
@@ -64,6 +143,7 @@ export function ReconLeadScreen() {
     };
   }, []);
 
+  const exceptionsByCategory = useMemo(() => computeExceptionCounts(), []);
   const totalExceptions = exceptionsByCategory.reduce((sum, e) => sum + e.count, 0);
 
   return (
