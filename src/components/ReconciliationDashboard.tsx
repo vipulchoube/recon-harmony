@@ -50,7 +50,9 @@ interface CaseState {
   caseId: string;
   status: CaseStatus;
   assignedTo: string;
-  exceptionCode: ExceptionCode | '';
+  exceptionCode: ExceptionCode | '' | 'NEW';
+  customExceptionCode?: string;
+  customReasonCode?: string;
   comments: { author: string; content: string; createdAt: Date }[];
 }
 
@@ -384,23 +386,42 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
     toast.success(`Status updated to ${newStatus}`);
   };
 
-  const handleOtherExceptionCodeChange = (code: ExceptionCode | '') => {
+  const handleOtherExceptionCodeChange = (code: ExceptionCode | '' | 'NEW') => {
     if (!selectedOtherCase) return;
     const caseId = getOtherCaseId(selectedOtherIndex);
     const currentState = getOtherCaseState(caseId);
-    
-    // Get the reason code for the selected exception code
-    const reasonCode = code ? getExceptionDescription(code) : 'OTHER';
     
     setOtherCaseStates(prev => ({
       ...prev,
       [caseId]: {
         ...currentState,
-        exceptionCode: code
+        exceptionCode: code,
+        // Clear custom fields if not NEW
+        customExceptionCode: code === 'NEW' ? currentState.customExceptionCode : undefined,
+        customReasonCode: code === 'NEW' ? currentState.customReasonCode : undefined,
       }
     }));
     
-    toast.success(`Exception code updated to ${code || 'None'}`);
+    if (code === 'NEW') {
+      toast.info('Enter custom exception code and reason code');
+    } else {
+      toast.success(`Exception code updated to ${code || 'None'}`);
+    }
+  };
+
+  const handleCustomExceptionChange = (field: 'code' | 'reason', value: string) => {
+    if (!selectedOtherCase) return;
+    const caseId = getOtherCaseId(selectedOtherIndex);
+    const currentState = getOtherCaseState(caseId);
+    
+    setOtherCaseStates(prev => ({
+      ...prev,
+      [caseId]: {
+        ...currentState,
+        customExceptionCode: field === 'code' ? value : currentState.customExceptionCode,
+        customReasonCode: field === 'reason' ? value : currentState.customReasonCode,
+      }
+    }));
   };
 
   const clearFilters = () => {
@@ -599,10 +620,16 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
                           </button>
                         </TableCell>
                         <TableCell className="font-mono text-warning">
-                          {caseState.exceptionCode || '-'}
+                          {caseState.exceptionCode === 'NEW' 
+                            ? (caseState.customExceptionCode || 'NEW')
+                            : (caseState.exceptionCode || '-')}
                         </TableCell>
                         <TableCell className="text-foreground">
-                          {caseState.exceptionCode ? getExceptionDescription(caseState.exceptionCode) : 'OTHER'}
+                          {caseState.exceptionCode === 'NEW'
+                            ? (caseState.customReasonCode || 'Custom')
+                            : caseState.exceptionCode 
+                              ? getExceptionDescription(caseState.exceptionCode as ExceptionCode) 
+                              : 'OTHER'}
                         </TableCell>
                         <TableCell className="text-foreground text-sm max-w-xs truncate" title={ex.other_description}>
                           {ex.other_description || '-'}
@@ -771,7 +798,7 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
                     <p className="text-xs text-muted-foreground">Exception Code</p>
                     <Select 
                       value={getOtherCaseState(getOtherCaseId(selectedOtherIndex)).exceptionCode || 'none'}
-                      onValueChange={(val) => handleOtherExceptionCodeChange(val === 'none' ? '' : val as ExceptionCode | '')}
+                      onValueChange={(val) => handleOtherExceptionCodeChange(val === 'none' ? '' : val as ExceptionCode | '' | 'NEW')}
                     >
                       <SelectTrigger className="w-full h-8">
                         <SelectValue placeholder="Select exception code..." />
@@ -783,17 +810,49 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
                             {def.code} - {def.category}
                           </SelectItem>
                         ))}
+                        <SelectItem value="NEW" className="text-primary font-medium">+ NEW Exception</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Reason Code</p>
                     <p className="text-foreground">
-                      {getOtherCaseState(getOtherCaseId(selectedOtherIndex)).exceptionCode 
-                        ? getExceptionDescription(getOtherCaseState(getOtherCaseId(selectedOtherIndex)).exceptionCode as ExceptionCode)
-                        : 'OTHER'}
+                      {(() => {
+                        const state = getOtherCaseState(getOtherCaseId(selectedOtherIndex));
+                        if (state.exceptionCode === 'NEW' && state.customReasonCode) {
+                          return state.customReasonCode;
+                        }
+                        return state.exceptionCode 
+                          ? getExceptionDescription(state.exceptionCode as ExceptionCode)
+                          : 'OTHER';
+                      })()}
                     </p>
                   </div>
+                  
+                  {/* Custom Exception Fields - shown when NEW is selected */}
+                  {getOtherCaseState(getOtherCaseId(selectedOtherIndex)).exceptionCode === 'NEW' && (
+                    <>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Custom Exception Code</p>
+                        <Input
+                          placeholder="Enter exception code..."
+                          value={getOtherCaseState(getOtherCaseId(selectedOtherIndex)).customExceptionCode || ''}
+                          onChange={(e) => handleCustomExceptionChange('code', e.target.value)}
+                          className="h-8"
+                        />
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Custom Reason Code</p>
+                        <Input
+                          placeholder="Enter reason code..."
+                          value={getOtherCaseState(getOtherCaseId(selectedOtherIndex)).customReasonCode || ''}
+                          onChange={(e) => handleCustomExceptionChange('reason', e.target.value)}
+                          className="h-8"
+                        />
+                      </div>
+                    </>
+                  )}
+                  
                   <div>
                     <p className="text-xs text-muted-foreground">Transaction Ref</p>
                     <p className="font-mono text-foreground">{selectedOtherCase.transaction_ref}</p>
@@ -810,11 +869,15 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">ISIN</p>
-                    <p className="font-mono text-foreground">-</p>
+                    <p className="font-mono text-foreground">{selectedOtherCase.isin || '-'}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Amount</p>
-                    <p className="font-mono text-foreground">-</p>
+                    <p className="font-mono text-foreground">
+                      {(selectedOtherCase as any).amount != null 
+                        ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((selectedOtherCase as any).amount)
+                        : '-'}
+                    </p>
                   </div>
                   <div className="col-span-2">
                     <p className="text-xs text-muted-foreground">Other Description</p>
