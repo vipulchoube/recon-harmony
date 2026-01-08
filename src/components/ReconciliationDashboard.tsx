@@ -111,6 +111,28 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
   // OTHER exceptions = ONLY from the dedicated otherExceptions array (no duplication from records)
   const otherExceptions = result.exceptions?.otherExceptions || [];
 
+  // Chart label mapping
+  const codeLabels: Record<string, string> = {
+    '101': '101-Feed Issue',
+    '102': '102-Cancelled Trade',
+    '103': '103-Unsettled Trade',
+    '104': '104-Not Settled in Market',
+    '105': '105-Wrong Account',
+    '106': '106-Partial Settlement',
+    'OTHER': 'OTHER',
+  };
+
+  // Reason code descriptions
+  const reasonCodeDescriptions: Record<string, string> = {
+    '101': 'Feed Issue',
+    '102': 'Cancelled Trade',
+    '103': 'Unsettled Trade',
+    '104': 'Not Settled in Market but Closed Internally',
+    '105': 'Booked to Wrong Account',
+    '106': 'Partial Settlement',
+    'OTHER': 'Other Exception',
+  };
+
   // Prepare chart data from actual exception records (single source of truth)
   const chartData = useMemo(() => {
     const records = result.exceptions?.records || [];
@@ -129,7 +151,7 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
     // Build chart data - show ALL exception codes (101-106) plus OTHER
     const allCodes = ['101', '102', '103', '104', '105', '106', 'OTHER'];
     return allCodes.map(code => ({
-      name: code,
+      name: codeLabels[code] || code,
       code: code,
       count: code === 'OTHER' ? otherTotal : (countByCode[code] || 0),
     }));
@@ -552,7 +574,7 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
                         </button>
                       </TableCell>
                       <TableCell className="font-mono text-primary">{record.exception_code}</TableCell>
-                      <TableCell className="text-foreground">{record.reason_code}</TableCell>
+                      <TableCell className="text-foreground">{reasonCodeDescriptions[record.exception_code] || record.reason_code}</TableCell>
                       <TableCell className="font-mono text-foreground">{record.transaction_ref}</TableCell>
                       <TableCell className="font-mono text-info">{record.ledger_swiftref}</TableCell>
                       <TableCell className="font-mono text-info">{record.settlement_swiftref || 'None'}</TableCell>
