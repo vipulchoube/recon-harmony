@@ -21,8 +21,12 @@ export function parseCSV(csvString: string): Record<string, string>[] {
   });
 }
 
+// Maximum records to send to AI to prevent request size limits
+const MAX_RECORDS_FOR_AI = 150;
+
 // Get only the open exception records as CSV (for AI reconciliation)
-export function getOpenExceptionRecordsCSV(): { ledgerCSV: string; statementCSV: string } {
+// Limited to MAX_RECORDS_FOR_AI to prevent request truncation
+export function getOpenExceptionRecordsCSV(): { ledgerCSV: string; statementCSV: string; totalExceptions: number; sentExceptions: number } {
   const ledgerRecords = parseCSV(sampleLedgerData);
   const statementRecords = parseCSV(sampleStatementData);
   
@@ -54,9 +58,15 @@ export function getOpenExceptionRecordsCSV(): { ledgerCSV: string; statementCSV:
     }
   });
   
-  // Get matching statement records
+  const totalExceptions = openLedgerRecords.length;
+  
+  // Limit to MAX_RECORDS_FOR_AI to prevent request truncation
+  const limitedLedgerRecords = openLedgerRecords.slice(0, MAX_RECORDS_FOR_AI);
+  const limitedTransactionRefs = new Set(limitedLedgerRecords.map(r => r.TransactionRef));
+  
+  // Get matching statement records (only for limited set)
   const openStatementRecords = statementRecords.filter(record => 
-    matchedTransactionRefs.has(record.TransactionRef)
+    limitedTransactionRefs.has(record.TransactionRef)
   );
   
   // Convert to CSV
@@ -65,7 +75,7 @@ export function getOpenExceptionRecordsCSV(): { ledgerCSV: string; statementCSV:
   
   const ledgerCSV = [
     ledgerHeaders.join(','),
-    ...openLedgerRecords.map(row => ledgerHeaders.map(h => row[h] || '').join(','))
+    ...limitedLedgerRecords.map(row => ledgerHeaders.map(h => row[h] || '').join(','))
   ].join('\n');
   
   const statementCSV = [
@@ -73,7 +83,12 @@ export function getOpenExceptionRecordsCSV(): { ledgerCSV: string; statementCSV:
     ...openStatementRecords.map(row => statementHeaders.map(h => row[h] || '').join(','))
   ].join('\n');
   
-  return { ledgerCSV, statementCSV };
+  return { 
+    ledgerCSV, 
+    statementCSV, 
+    totalExceptions, 
+    sentExceptions: limitedLedgerRecords.length 
+  };
 }
 
 // Pre-compute initial reconciliation stats (before AI analysis)
