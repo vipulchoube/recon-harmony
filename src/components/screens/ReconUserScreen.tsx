@@ -31,16 +31,66 @@ export function ReconUserScreen() {
   // Determine which stats to show based on whether AI reconciliation has run
   const hasAIReconciliation = !!reconciliationResult;
 
-  // IMPORTANT: First 3 stats (total, auto-matched, open exceptions) remain constant
-  // Only AI-identified exceptions updates after reconciliation
+  // Compute counts from reconciliation result to ensure consistency
+  const { knownCount, otherCount, displayOpenExceptions } = useMemo(() => {
+    if (!hasAIReconciliation || !reconciliationResult?.exceptions) {
+      return {
+        knownCount: 0,
+        otherCount: 0,
+        displayOpenExceptions: preReconStats.openExceptions,
+      };
+    }
+
+    const validCodes = ['101', '102', '103', '104', '105', '106'];
+    const records = reconciliationResult.exceptions.records || [];
+    const otherExceptionsFromResult = reconciliationResult.exceptions.otherExceptions || [];
+
+    // Known exceptions: records with codes 101-106
+    const known = records.filter(r => validCodes.includes(r.exception_code)).length;
+
+    // OTHER exceptions: deduplicated combination of:
+    // 1. Records not matching 101-106
+    // 2. otherExceptions array
+    const otherFromRecords = records.filter(r => !validCodes.includes(r.exception_code));
+    
+    // Create a deduplication key
+    const getKey = (item: { transaction_ref?: string; ledger_swiftref?: string; settlement_swiftref?: string }) =>
+      `${item.transaction_ref || ''}::${item.ledger_swiftref || ''}::${item.settlement_swiftref || ''}`;
+    
+    const seenKeys = new Set<string>();
+    let otherTotal = 0;
+    
+    // Add from otherExceptions first
+    otherExceptionsFromResult.forEach(ex => {
+      const key = getKey(ex);
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        otherTotal++;
+      }
+    });
+    
+    // Add from records not 101-106
+    otherFromRecords.forEach(r => {
+      const key = getKey(r);
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        otherTotal++;
+      }
+    });
+
+    return {
+      knownCount: known,
+      otherCount: otherTotal,
+      displayOpenExceptions: known + otherTotal,
+    };
+  }, [hasAIReconciliation, reconciliationResult, preReconStats.openExceptions]);
+
+  // IMPORTANT: First 2 stats (total, auto-matched) remain constant
   const displayTotalRecords = preReconStats.totalRecords;
   const displayAutoMatched = preReconStats.autoMatched;
-  const displayOpenExceptions = preReconStats.openExceptions;
 
-  // AI-identified exceptions is 0 before reconciliation, then count only 101-106 exceptions
-  const aiIdentifiedExceptions = hasAIReconciliation
-    ? (reconciliationResult?.exceptions?.records?.filter(r => KNOWN_EXCEPTION_CODES.has(r.exception_code))?.length || 0)
-    : 0;
+  // AI-identified exceptions is 0 before reconciliation, then shows known (101-106) count
+  const aiIdentifiedExceptions = hasAIReconciliation ? knownCount : 0;
 
   const handleStartReconciliation = async () => {
     // Get only the open exception records for AI reconciliation
