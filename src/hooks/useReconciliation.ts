@@ -92,8 +92,8 @@ export function useReconciliation() {
     }));
 
     try {
-      // Add 5 second delay to simulate processing
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      // Add 10 second delay to simulate processing
+      await new Promise(resolve => setTimeout(resolve, 10000));
 
       const { ledgerRecords, statementMap } = getOpenExceptionRecords();
       const totalRecords = ledgerRecords.length;

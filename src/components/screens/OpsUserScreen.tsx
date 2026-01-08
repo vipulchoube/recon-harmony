@@ -55,6 +55,17 @@ export function OpsUserScreen() {
     return def?.category || 'OTHER';
   };
 
+  // Reason code descriptions mapping
+  const reasonCodeDescriptions: Record<string, string> = {
+    '101': 'Feed Issue',
+    '102': 'Cancelled Trade',
+    '103': 'Unsettled Trade',
+    '104': 'Not Settled in Market but Closed Internally',
+    '105': 'Booked to Wrong Account',
+    '106': 'Partial Settlement',
+    'OTHER': 'Other Exception',
+  };
+
   // Calculate stats from assigned cases
   const reviewCount = assignedCases.filter(c => c.status === 'UNDER REVIEW').length;
   const closedCount = assignedCases.filter(c => c.status === 'CLOSED').length;
@@ -224,7 +235,7 @@ export function OpsUserScreen() {
                         </button>
                       </TableCell>
                       <TableCell className="font-mono text-primary">{assignedCase.exceptionCode}</TableCell>
-                      <TableCell>{assignedCase.reasonCode}</TableCell>
+                      <TableCell>{reasonCodeDescriptions[assignedCase.exceptionCode] || assignedCase.reasonCode}</TableCell>
                       <TableCell className="font-mono">{assignedCase.transactionRef}</TableCell>
                       <TableCell className="font-mono text-info">{assignedCase.ledgerSwiftRef}</TableCell>
                       <TableCell className="font-mono text-info">{assignedCase.settlementSwiftRef || 'None'}</TableCell>
@@ -263,7 +274,7 @@ export function OpsUserScreen() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Reason Code</p>
-                  <p>{selectedCase.reasonCode}</p>
+                  <p>{reasonCodeDescriptions[selectedCase.exceptionCode] || selectedCase.reasonCode}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Transaction Ref</p>
