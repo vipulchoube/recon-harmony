@@ -224,7 +224,7 @@ export function AdminUserScreen() {
       </div>
 
       {/* Agent Analysis Panel */}
-      <AdminAgentPanel state={agentState} ledgerData={ledgerData} targetSchema={reconciliationSchemas[reconciliationType]} />
+      <AdminAgentPanel state={agentState} ledgerData={ledgerData} />
 
       {/* Uploaded Files History */}
       {uploadedFiles.length > 0 && (

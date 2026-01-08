@@ -32,12 +32,43 @@ import {
 interface AdminAgentPanelProps {
   state: AgentState;
   ledgerData?: string;
-  targetSchema?: { columnName: string; inferredType: string; nullable: boolean; sampleValues: string[]; issues: string[] }[];
 }
 
-export function AdminAgentPanel({ state, ledgerData, targetSchema }: AdminAgentPanelProps) {
+// Helper function to parse CSV and infer schema from ledger data
+function parseLedgerSchema(csvData: string): { columnName: string; inferredType: string }[] {
+  if (!csvData) return [];
+  
+  const lines = csvData.trim().split('\n');
+  if (lines.length < 2) return [];
+  
+  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+  const firstDataRow = lines[1].split(',').map(v => v.trim().replace(/"/g, ''));
+  
+  return headers.map((header, index) => {
+    const sampleValue = firstDataRow[index] || '';
+    let inferredType = 'STRING';
+    
+    // Infer type from sample value
+    if (/^\d{1,2}[-\/]\w{3}[-\/]?\d{0,4}$/.test(sampleValue) || /^\d{4}-\d{2}-\d{2}$/.test(sampleValue)) {
+      inferredType = 'DATE';
+    } else if (/^-?\d+\.\d+$/.test(sampleValue)) {
+      inferredType = 'DECIMAL';
+    } else if (/^-?\d+$/.test(sampleValue)) {
+      inferredType = 'INTEGER';
+    } else if (sampleValue.toLowerCase() === 'true' || sampleValue.toLowerCase() === 'false') {
+      inferredType = 'BOOLEAN';
+    }
+    
+    return { columnName: header, inferredType };
+  });
+}
+
+export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
   const { currentStep, isAnalyzing, dataQuality, schemaAnalysis, etlScript } = state;
   const [approvedMappings, setApprovedMappings] = useState<Set<number>>(new Set());
+  
+  // Parse ledger schema from the uploaded ledger data
+  const ledgerSchema = parseLedgerSchema(ledgerData || '');
 
   const handleApproveMapping = (index: number) => {
     setApprovedMappings(prev => new Set([...prev, index]));
@@ -285,22 +316,21 @@ export function AdminAgentPanel({ state, ledgerData, targetSchema }: AdminAgentP
                           const displayConfidence = isApproved ? 1 : mapping.matchConfidence;
                           const needsApproval = !isApproved && mapping.matchConfidence < 0.9;
                           
-                          // Check for datatype mismatch between statement and target schema
+                          // Check for datatype mismatch between statement and ledger schema
                           const statementCol = schemaAnalysis.statementSchema?.find(
                             s => s.columnName.toLowerCase() === mapping.statementColumn.toLowerCase()
                           );
-                          // Use the passed targetSchema prop for comparison (not ledgerSchema)
-                          const targetCol = targetSchema?.find(
+                          const ledgerCol = schemaAnalysis.ledgerSchema?.find(
                             t => t.columnName?.toLowerCase() === mapping.ledgerColumn.toLowerCase()
                           );
-                          const hasTypeMismatch = statementCol && targetCol && 
-                            statementCol.inferredType?.toUpperCase() !== targetCol.inferredType?.toUpperCase();
+                          const hasTypeMismatch = statementCol && ledgerCol && 
+                            statementCol.inferredType?.toUpperCase() !== ledgerCol.inferredType?.toUpperCase();
                           const showTransformNeeded = mapping.transformationNeeded || hasTypeMismatch;
                           
                           // Generate reasoning for transform
                           let transformReason = mapping.transformationRule || '';
                           if (hasTypeMismatch && !transformReason) {
-                            transformReason = `Statement field is ${statementCol?.inferredType || 'unknown'} but Target expects ${targetCol?.inferredType || 'unknown'}`;
+                            transformReason = `Statement field is ${statementCol?.inferredType || 'unknown'} but Target expects ${ledgerCol?.inferredType || 'unknown'}`;
                           }
                           
                           return (
@@ -625,14 +655,14 @@ export function AdminAgentPanel({ state, ledgerData, targetSchema }: AdminAgentP
         {/* Schema Preview Section */}
         {schemaAnalysis && (
           <div className="grid grid-cols-2 gap-4 mt-6">
-            {/* Target Schema Preview */}
+            {/* Ledger Schema Preview */}
             <div className="p-4 rounded-lg bg-secondary/50 border border-border">
               <h4 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
                 <Database className="h-4 w-4 text-primary" />
-                Target Schema Preview
+                Ledger Schema Preview
               </h4>
               <ScrollArea className="h-48">
-                {targetSchema && targetSchema.length > 0 ? (
+                {ledgerSchema.length > 0 ? (
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -641,7 +671,7 @@ export function AdminAgentPanel({ state, ledgerData, targetSchema }: AdminAgentP
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {targetSchema.map((col, i) => (
+                      {ledgerSchema.map((col, i) => (
                         <TableRow key={i}>
                           <TableCell className="font-mono text-xs text-primary py-1">
                             {col.columnName}
@@ -655,7 +685,7 @@ export function AdminAgentPanel({ state, ledgerData, targetSchema }: AdminAgentP
                   </Table>
                 ) : (
                   <p className="text-sm text-muted-foreground text-center py-4">
-                    Select a reconciliation type to see the target schema
+                    Upload a ledger file to see its schema
                   </p>
                 )}
               </ScrollArea>
