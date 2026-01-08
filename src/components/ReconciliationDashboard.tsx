@@ -131,6 +131,7 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
   ];
 
   // Prepare chart data from actual exception records (single source of truth)
+  // ALWAYS show all exception codes 101-106 and OTHER (even with 0 count)
   const chartData = useMemo(() => {
     const records = result.exceptions?.records || [];
     
@@ -145,14 +146,12 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
     // Count OTHER exceptions (already computed as otherExceptions.length)
     const otherTotal = otherExceptions.length;
     
-    // Build chart data from EXCEPTION_DEFINITIONS to maintain consistent labels
-    return EXCEPTION_DEFINITIONS
-      .filter(def => (countByCode[def.code] || 0) > 0 || (def.code === 'OTHER' && otherTotal > 0))
-      .map(def => ({
-        name: `${def.code} - ${def.category.toUpperCase()}`,
-        code: def.code,
-        count: def.code === 'OTHER' ? otherTotal : (countByCode[def.code] || 0),
-      }));
+    // Build chart data from EXCEPTION_DEFINITIONS - SHOW ALL CODES (even with 0 count)
+    return EXCEPTION_DEFINITIONS.map(def => ({
+      name: `${def.code} - ${def.category.toUpperCase()}`,
+      code: def.code,
+      count: def.code === 'OTHER' ? otherTotal : (countByCode[def.code] || 0),
+    }));
   }, [result.exceptions?.records, otherExceptions.length]);
 
   const chartColors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
@@ -894,9 +893,11 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
                   <div>
                     <p className="text-xs text-muted-foreground">Amount</p>
                     <p className="font-mono text-foreground">
-                      {selectedOtherCase.amount != null 
+                      {selectedOtherCase.amount != null && selectedOtherCase.amount !== 0
                         ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(selectedOtherCase.amount)
-                        : '-'}
+                        : (selectedOtherCase as any).ledger_amount != null
+                          ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((selectedOtherCase as any).ledger_amount)
+                          : '-'}
                     </p>
                   </div>
                   <div className="col-span-2">
