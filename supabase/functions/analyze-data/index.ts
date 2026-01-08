@@ -335,16 +335,47 @@ Return the complete reconciliation result as JSON.`;
     // Parse JSON from the response (handle markdown code blocks)
     let parsedResult;
     try {
-      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-      const jsonString = jsonMatch ? jsonMatch[1] : content;
-      parsedResult = JSON.parse(jsonString);
+      let jsonString = content.trim();
+      
+      // Remove markdown code block wrapper if present (robust handling)
+      if (jsonString.startsWith('```')) {
+        // Remove opening ```json or ``` with optional newline
+        jsonString = jsonString.replace(/^```(?:json)?\s*\n?/, '');
+        // Remove closing ``` with optional preceding newline
+        jsonString = jsonString.replace(/\n?```\s*$/, '');
+      }
+      
+      parsedResult = JSON.parse(jsonString.trim());
     } catch (parseError) {
       console.error("Failed to parse AI response as JSON:", parseError);
       console.log("Raw content length:", content.length);
       console.log("Raw content preview:", content.substring(0, 500));
       
-      // For ETL analysis, try to extract the script from the rawResponse
-      if (analysisType === 'generate_etl') {
+      // For reconciliation analysis, try to extract partial data
+      if (analysisType === 'reconciliation') {
+        console.log("Attempting to extract partial reconciliation data...");
+        
+        // Try to clean and parse the content again
+        let cleanedContent = content.trim();
+        if (cleanedContent.startsWith('```')) {
+          cleanedContent = cleanedContent.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+        }
+        
+        try {
+          parsedResult = JSON.parse(cleanedContent.trim());
+        } catch (secondError) {
+          console.error("Second parse attempt failed:", secondError);
+          
+          // Build empty result structure with error info
+          parsedResult = {
+            summary: [],
+            matching: { matchedCount: 0, unmatchedCount: 0, totalRecords: 0, matchedRecords: [] },
+            exceptions: { exceptionCounts: [], records: [], otherExceptions: [] },
+            expectedOutput: [],
+            parseError: "Failed to parse AI response"
+          };
+        }
+      } else if (analysisType === 'generate_etl') {
         // Try to extract script from partial JSON or markdown code block
         const sqlMatch = content.match(/```(?:sql|plsql)?\s*([\s\S]*?)\s*```/);
         const scriptMatch = content.match(/"script"\s*:\s*"([\s\S]*?)(?:"|$)/);
@@ -364,18 +395,14 @@ Return the complete reconciliation result as JSON.`;
             executionOrder: []
           };
         } else {
-          // Use raw content as the script itself
           parsedResult = { rawResponse: content };
         }
       } else if (analysisType === 'schema_analysis') {
-        // Try to extract partial schema analysis from truncated JSON
         console.log("Attempting to extract partial schema analysis...");
         
-        // Try to extract mappings array even if JSON is incomplete
         const mappingsMatch = content.match(/"mappings"\s*:\s*\[([\s\S]*?)(?:\]|$)/);
         const statementSchemaMatch = content.match(/"statementSchema"\s*:\s*\[([\s\S]*?)(?:\]|$)/);
         
-        // Build partial result with defaults
         parsedResult = {
           statementSchema: [],
           targetSchema: [],
@@ -383,12 +410,9 @@ Return the complete reconciliation result as JSON.`;
           schemaCorrections: []
         };
         
-        // Try to parse extracted mappings
         if (mappingsMatch) {
           try {
-            // Complete the array and parse
             let mappingsJson = '[' + mappingsMatch[1];
-            // Try to close any unclosed objects/arrays
             const openBraces = (mappingsJson.match(/{/g) || []).length;
             const closeBraces = (mappingsJson.match(/}/g) || []).length;
             for (let i = 0; i < openBraces - closeBraces; i++) {
@@ -401,7 +425,6 @@ Return the complete reconciliation result as JSON.`;
           }
         }
         
-        // Try to parse statement schema
         if (statementSchemaMatch) {
           try {
             let schemaJson = '[' + statementSchemaMatch[1];
