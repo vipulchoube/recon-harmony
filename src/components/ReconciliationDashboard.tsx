@@ -608,7 +608,7 @@ export function ReconciliationDashboard({ result }: ReconciliationDashboardProps
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {result.exceptions.otherExceptions.map((ex, i) => {
+                  {otherExceptions.map((ex, i) => {
                     const caseId = getOtherCaseId(i);
                     const caseState = getOtherCaseState(caseId);
                     return (
