@@ -88,7 +88,8 @@ export function AdminUserScreen() {
     }
     // Get the selected schema for comparison
     const selectedSchema = reconciliationSchemas[reconciliationType];
-    runSchemaSetup(statementData, selectedSchema, reconciliationType);
+    // Pass both statement and ledger data for comprehensive analysis
+    runSchemaSetup(statementData, selectedSchema, reconciliationType, ledgerData || undefined);
   };
 
   const canRunAgent = statementData && !agentState.isAnalyzing;

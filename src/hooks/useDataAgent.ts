@@ -31,7 +31,12 @@ export function useDataAgent() {
   });
 
   // Admin schema setup - compares statement against selected reconciliation schema
-  const runSchemaSetup = async (statementData: string, targetSchema: SchemaColumn[], reconciliationType: ReconciliationType) => {
+  const runSchemaSetup = async (
+    statementData: string, 
+    targetSchema: SchemaColumn[], 
+    reconciliationType: ReconciliationType,
+    ledgerData?: string
+  ) => {
     setState(prev => ({ 
       ...prev, 
       isAnalyzing: true, 
@@ -46,10 +51,16 @@ export function useDataAgent() {
     const schemaDescription = JSON.stringify(targetSchema);
 
     try {
-      // Step 1: Data Ingestion (Data Quality Checks)
+      // Step 1: Data Ingestion (Data Quality Checks) - Now includes both files
       toast.info('Agent: Running data ingestion...');
       const qualityResponse = await supabase.functions.invoke('analyze-data', {
-        body: { statementData, targetSchema: schemaDescription, analysisType: 'data_quality', reconciliationType }
+        body: { 
+          statementData, 
+          ledgerData,
+          targetSchema: schemaDescription, 
+          analysisType: 'data_quality', 
+          reconciliationType 
+        }
       });
 
       if (qualityResponse.error) {

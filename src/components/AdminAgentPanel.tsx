@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AgentState } from '@/hooks/useDataAgent';
@@ -65,8 +66,22 @@ function parseLedgerSchema(csvData: string): { columnName: string; inferredType:
 export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
   const { currentStep, isAnalyzing, dataQuality, schemaAnalysis, etlScript } = state;
   
+  // State for approved mappings
+  const [approvedMappings, setApprovedMappings] = useState<Set<number>>(new Set());
+  
   // Parse ledger schema from the uploaded ledger data
   const ledgerSchema = parseLedgerSchema(ledgerData || '');
+
+  // Handle approve mapping
+  const handleApproveMaping = (index: number) => {
+    setApprovedMappings(prev => new Set(prev).add(index));
+    toast.success('Mapping approved and set to 100% match');
+  };
+
+  // Get effective confidence for a mapping
+  const getEffectiveConfidence = (index: number, originalConfidence: number) => {
+    return approvedMappings.has(index) ? 1.0 : originalConfidence;
+  };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -98,10 +113,11 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
     { id: 'schema_analysis', label: 'Schema Mapping', icon: Database },
     { id: 'data_quality_check', label: 'Data Quality', icon: ShieldCheck },
     { id: 'generate_etl', label: 'ETL Script', icon: Code },
+    { id: 'automatch', label: 'Auto-match Rules', icon: Link2 },
   ];
 
   const getStepStatus = (stepId: string) => {
-    const stepOrder = ['data_quality', 'schema_analysis', 'data_quality_check', 'generate_etl', 'complete'];
+    const stepOrder = ['data_quality', 'schema_analysis', 'data_quality_check', 'generate_etl', 'automatch', 'complete'];
     const currentIndex = stepOrder.indexOf(currentStep);
     const stepIndex = stepOrder.indexOf(stepId);
     
@@ -329,33 +345,56 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                     </h4>
                     {schemaAnalysis.mappings && schemaAnalysis.mappings.length > 0 ? (
                       <div className="space-y-2">
-                        {schemaAnalysis.mappings.map((mapping, i) => (
-                          <div key={i} className="p-2 rounded bg-background/50 border border-border/50 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs text-info bg-info/10 px-2 py-1 rounded">{mapping.statementColumn}</span>
-                              <span className="text-muted-foreground text-xs">(Statement)</span>
-                              <span className="text-muted-foreground">→</span>
-                              <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-1 rounded">{mapping.ledgerColumn}</span>
-                              <span className="text-muted-foreground text-xs">(Target)</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className={`text-xs px-2 py-0.5 rounded ${
-                                mapping.matchConfidence > 0.8 
-                                  ? 'bg-success/20 text-success' 
-                                  : mapping.matchConfidence > 0.5 
-                                  ? 'bg-warning/20 text-warning'
-                                  : 'bg-destructive/20 text-destructive'
-                              }`}>
-                                {Math.round(mapping.matchConfidence * 100)}% match
-                              </span>
-                              {mapping.transformationNeeded && (
-                                <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">
-                                  Transform needed
+                        {schemaAnalysis.mappings.map((mapping, i) => {
+                          const effectiveConfidence = getEffectiveConfidence(i, mapping.matchConfidence);
+                          const isApproved = approvedMappings.has(i);
+                          const needsApproval = mapping.matchConfidence < 0.9 && !isApproved;
+                          
+                          return (
+                            <div key={i} className="p-2 rounded bg-background/50 border border-border/50 flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-xs text-info bg-info/10 px-2 py-1 rounded">{mapping.statementColumn}</span>
+                                <span className="text-muted-foreground text-xs">(Statement)</span>
+                                <span className="text-muted-foreground">→</span>
+                                <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-1 rounded">{mapping.ledgerColumn}</span>
+                                <span className="text-muted-foreground text-xs">(Target)</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className={`text-xs px-2 py-0.5 rounded ${
+                                  effectiveConfidence >= 0.9
+                                    ? 'bg-success/20 text-success' 
+                                    : effectiveConfidence > 0.5 
+                                    ? 'bg-warning/20 text-warning'
+                                    : 'bg-destructive/20 text-destructive'
+                                }`}>
+                                  {Math.round(effectiveConfidence * 100)}% match
                                 </span>
-                              )}
+                                {needsApproval && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-6 text-xs px-2"
+                                    onClick={() => handleApproveMaping(i)}
+                                  >
+                                    <CheckCircle className="h-3 w-3 mr-1" />
+                                    Approve
+                                  </Button>
+                                )}
+                                {isApproved && (
+                                  <span className="text-xs bg-success/20 text-success px-2 py-0.5 rounded flex items-center gap-1">
+                                    <CheckCircle className="h-3 w-3" />
+                                    Approved
+                                  </span>
+                                )}
+                                {mapping.transformationNeeded && (
+                                  <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">
+                                    Transform needed
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <p className="text-sm text-muted-foreground">No mappings detected yet.</p>
