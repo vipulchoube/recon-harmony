@@ -378,12 +378,22 @@ export function AdminAgentPanel({ state, ledgerData }: AdminAgentPanelProps) {
                                   )}
                                 </div>
                               </div>
-                              {showTransformNeeded && transformReason && (
-                                <div className="mt-2 text-xs text-muted-foreground bg-muted/30 px-2 py-1 rounded">
-                                  <span className="text-primary font-medium">Reason: </span>
-                                  {transformReason}
-                                </div>
-                              )}
+                              {(() => {
+                                const reasons: string[] = [];
+                                if (needsApproval && !approvedMappings.has(i)) {
+                                  reasons.push(`Low match confidence (${Math.round(displayConfidence * 100)}%) - column name similarity is weak, manual verification recommended`);
+                                }
+                                if (showTransformNeeded && transformReason) {
+                                  reasons.push(transformReason);
+                                }
+                                if (reasons.length === 0) return null;
+                                return (
+                                  <div className="mt-2 text-xs text-muted-foreground bg-muted/30 px-2 py-1 rounded">
+                                    <span className="text-primary font-medium">Reason: </span>
+                                    {reasons.join('. Additionally, ')}
+                                  </div>
+                                );
+                              })()}
                             </div>
                           );
                         })}
