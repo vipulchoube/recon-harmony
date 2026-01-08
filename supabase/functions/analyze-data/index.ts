@@ -116,52 +116,32 @@ Perform these specific checks on the ACTUAL data:
 
 Return the results as JSON. Mark checks as PASSED if no issues found.`;
     } else if (analysisType === 'schema_analysis') {
-      systemPrompt = `You are a schema analysis AI agent. Analyze the provided statement CSV data and compare it against the target schema:
-1. Infer column data types from the statement data
-2. Detect schema mismatches between statement columns and target schema columns
-3. Suggest schema corrections for invalid values
-4. Map statement columns to target schema columns
+      systemPrompt = `You are a schema analysis AI agent. Analyze statement CSV columns and map them to target schema columns.
 
-Respond with a JSON object with this structure:
+IMPORTANT: Keep response CONCISE. Return only the essential mappings.
+
+Respond with this EXACT JSON structure (no markdown):
 {
   "statementSchema": [
-    {
-      "columnName": "string",
-      "inferredType": "STRING" | "INTEGER" | "DECIMAL" | "DATE" | "BOOLEAN",
-      "nullable": boolean,
-      "sampleValues": ["string"],
-      "issues": ["string"]
-    }
+    {"columnName": "string", "inferredType": "STRING|INTEGER|DECIMAL|DATE", "nullable": false, "sampleValues": [], "issues": []}
   ],
-  "targetSchema": [...same structure...],
+  "targetSchema": [],
   "mappings": [
-    {
-      "ledgerColumn": "string (this is the TARGET schema column)",
-      "statementColumn": "string",
-      "matchConfidence": number,
-      "transformationNeeded": boolean,
-      "transformationRule": "string"
-    }
+    {"ledgerColumn": "target column name", "statementColumn": "statement column name", "matchConfidence": 0.95, "transformationNeeded": false, "transformationRule": ""}
   ],
-  "schemaCorrections": [
-    {
-      "file": "statement",
-      "column": "string",
-      "currentValue": "string",
-      "suggestedValue": "string",
-      "reason": "string"
-    }
-  ]
-}`;
-      userPrompt = `Analyze the schema of the statement CSV and map it to the target schema:
+  "schemaCorrections": []
+}
 
-TARGET SCHEMA (the expected/reference schema):
+Match columns by name similarity. Return matchConfidence between 0 and 1. Keep sampleValues empty to reduce response size.`;
+      userPrompt = `Map statement columns to target schema columns.
+
+TARGET SCHEMA:
 ${targetSchema}
 
-STATEMENT DATA (the uploaded data to compare):
-${statementData}
+STATEMENT HEADERS (first line):
+${statementData.split('\n')[0]}
 
-Compare the statement data columns against the target schema. For each column in the target schema, find the best matching column in the statement data. Infer types, detect mismatches, and suggest corrections as JSON.`;
+Return the JSON mapping. Be concise.`;
     } else if (analysisType === 'generate_etl') {
       systemPrompt = `You are an ETL script generator AI agent specialized in Oracle database. Generate a CONCISE PL/SQL ETL script that:
 1. Creates staging tables for statement data based on the target schema
@@ -349,6 +329,7 @@ Return the complete reconciliation result as JSON.`;
     } catch (parseError) {
       console.error("Failed to parse AI response as JSON:", parseError);
       console.log("Raw content length:", content.length);
+      console.log("Raw content preview:", content.substring(0, 500));
       
       // For ETL analysis, try to extract the script from the rawResponse
       if (analysisType === 'generate_etl') {
@@ -373,6 +354,55 @@ Return the complete reconciliation result as JSON.`;
         } else {
           // Use raw content as the script itself
           parsedResult = { rawResponse: content };
+        }
+      } else if (analysisType === 'schema_analysis') {
+        // Try to extract partial schema analysis from truncated JSON
+        console.log("Attempting to extract partial schema analysis...");
+        
+        // Try to extract mappings array even if JSON is incomplete
+        const mappingsMatch = content.match(/"mappings"\s*:\s*\[([\s\S]*?)(?:\]|$)/);
+        const statementSchemaMatch = content.match(/"statementSchema"\s*:\s*\[([\s\S]*?)(?:\]|$)/);
+        
+        // Build partial result with defaults
+        parsedResult = {
+          statementSchema: [],
+          targetSchema: [],
+          mappings: [],
+          schemaCorrections: []
+        };
+        
+        // Try to parse extracted mappings
+        if (mappingsMatch) {
+          try {
+            // Complete the array and parse
+            let mappingsJson = '[' + mappingsMatch[1];
+            // Try to close any unclosed objects/arrays
+            const openBraces = (mappingsJson.match(/{/g) || []).length;
+            const closeBraces = (mappingsJson.match(/}/g) || []).length;
+            for (let i = 0; i < openBraces - closeBraces; i++) {
+              mappingsJson += '}';
+            }
+            mappingsJson += ']';
+            parsedResult.mappings = JSON.parse(mappingsJson);
+          } catch (e) {
+            console.log("Could not parse mappings:", e);
+          }
+        }
+        
+        // Try to parse statement schema
+        if (statementSchemaMatch) {
+          try {
+            let schemaJson = '[' + statementSchemaMatch[1];
+            const openBraces = (schemaJson.match(/{/g) || []).length;
+            const closeBraces = (schemaJson.match(/}/g) || []).length;
+            for (let i = 0; i < openBraces - closeBraces; i++) {
+              schemaJson += '}';
+            }
+            schemaJson += ']';
+            parsedResult.statementSchema = JSON.parse(schemaJson);
+          } catch (e) {
+            console.log("Could not parse statement schema:", e);
+          }
         }
       } else {
         parsedResult = { rawResponse: content };
