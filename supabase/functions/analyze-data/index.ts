@@ -144,9 +144,10 @@ ${statementData.split('\n')[0]}
 Return the JSON mapping. Be concise.`;
     } else if (analysisType === 'generate_etl') {
       systemPrompt = `You are an ETL script generator AI agent specialized in Oracle database. Generate a CONCISE PL/SQL ETL script that:
-1. Creates staging tables for statement data based on the target schema
-2. Performs basic data transformation
-3. Creates a simple reconciliation output table
+1. Creates staging tables for LEDGER data
+2. Creates staging tables for STATEMENT data
+3. Performs basic data transformation between Ledger and Statement
+4. Creates a simple reconciliation output table
 
 Keep the script SHORT and focused - max 100 lines of SQL. This is a proof of concept.
 
@@ -157,15 +158,15 @@ IMPORTANT: Return ONLY a valid JSON object (no markdown). Use this exact structu
   "procedures": [],
   "executionOrder": ["step1", "step2"]
 }`;
-      userPrompt = `Based on the target schema and statement data structure, generate a SHORT Oracle PL/SQL ETL script (max 100 lines):
+      userPrompt = `Based on the LEDGER and STATEMENT data structure, generate a SHORT Oracle PL/SQL ETL script (max 100 lines):
 
-TARGET SCHEMA:
-${targetSchema}
+LEDGER DATA SAMPLE:
+${ledgerData || 'No ledger data provided'}
 
 STATEMENT DATA SAMPLE:
 ${statementData}
 
-Generate a production-ready Oracle ETL script with staging tables, transformations, and reconciliation logic for ${reconciliationType || 'position'} reconciliation.`;
+Generate a production-ready Oracle ETL script with staging tables for both LEDGER and STATEMENT, transformations, and reconciliation logic for ${reconciliationType || 'position'} reconciliation.`;
     } else if (analysisType === 'reconciliation') {
       systemPrompt = `You are a trade reconciliation AI agent. Analyze ledger and statement data to perform matching and exception detection.
 

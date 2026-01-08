@@ -13,7 +13,8 @@ import {
   Download,
   Bot,
   FileText,
-  GitCompare
+  GitCompare,
+  Link2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -84,10 +85,11 @@ export function AgentAnalysisPanel({ state }: AgentAnalysisPanelProps) {
     { id: 'schema_analysis', label: 'Schema', icon: Database },
     { id: 'reconciliation', label: 'Recon', icon: GitCompare },
     { id: 'generate_etl', label: 'ETL', icon: Code },
+    { id: 'automatch', label: 'Auto-match', icon: Link2 },
   ];
 
   const getStepStatus = (stepId: string) => {
-    const stepOrder = ['data_quality', 'schema_analysis', 'reconciliation', 'generate_etl', 'complete'];
+    const stepOrder = ['data_quality', 'schema_analysis', 'reconciliation', 'generate_etl', 'automatch', 'complete'];
     const currentIndex = stepOrder.indexOf(currentStep);
     const stepIndex = stepOrder.indexOf(stepId);
     
@@ -513,14 +515,16 @@ export function AgentAnalysisPanel({ state }: AgentAnalysisPanelProps) {
                 <>
                   {schemaAnalysis.mappings && schemaAnalysis.mappings.length > 0 && (
                     <div>
-                      <h4 className="text-sm font-medium text-foreground mb-2">Column Mappings</h4>
+                      <h4 className="text-sm font-medium text-foreground mb-2">Column Mappings (Ledger → Statement)</h4>
                       <div className="space-y-2">
                         {schemaAnalysis.mappings.map((mapping, i) => (
                           <div key={i} className="p-2 rounded bg-secondary/50 border border-border/50 flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs text-primary">{mapping.ledgerColumn}</span>
+                              <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-1 rounded">{mapping.ledgerColumn}</span>
+                              <span className="text-muted-foreground text-xs">(Ledger)</span>
                               <span className="text-muted-foreground">→</span>
-                              <span className="font-mono text-xs text-info">{mapping.statementColumn}</span>
+                              <span className="font-mono text-xs text-info bg-info/10 px-2 py-1 rounded">{mapping.statementColumn}</span>
+                              <span className="text-muted-foreground text-xs">(Statement)</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <span className={`text-xs px-2 py-0.5 rounded ${
@@ -535,6 +539,11 @@ export function AgentAnalysisPanel({ state }: AgentAnalysisPanelProps) {
                               {mapping.transformationNeeded && (
                                 <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">
                                   Transform needed
+                                </span>
+                              )}
+                              {mapping.matchConfidence < 0.9 && (
+                                <span className="text-xs bg-warning/20 text-warning px-2 py-0.5 rounded">
+                                  Reasoning mismatch
                                 </span>
                               )}
                             </div>
@@ -603,7 +612,7 @@ export function AgentAnalysisPanel({ state }: AgentAnalysisPanelProps) {
                     <div className="grid grid-cols-2 gap-4">
                       {etlScript.tables?.length > 0 && (
                         <div className="p-3 rounded bg-secondary/50 border border-border/50">
-                          <h5 className="text-xs font-medium text-foreground mb-2">Tables Created</h5>
+                          <h5 className="text-xs font-medium text-foreground mb-2">Tables Created (Ledger & Statement)</h5>
                           {etlScript.tables.map((table, i) => (
                             <div key={i} className="text-xs">
                               <span className="font-mono text-primary">{table.name}</span>
