@@ -20,10 +20,10 @@ const autoMatchTrendData = [
 ];
 // Mock data for Recon Lead dashboard - using the 4 teams
 const teams = [
-  { id: 1, teamName: "Euroclear settlement team", assigned: 202, resolved: 15, pending: 3, avgResolutionTime: 22 },
-  { id: 2, teamName: "Crest settlement team", assigned: 12, resolved: 8, pending: 4, avgResolutionTime: 28 },
-  { id: 3, teamName: "Clearstream settlement team", assigned: 15, resolved: 12, pending: 3, avgResolutionTime: 18 },
-  { id: 4, teamName: "Domestic settlement team", assigned: 10, resolved: 9, pending: 1, avgResolutionTime: 25 },
+  { id: 1, teamName: "Euroclear settlement team", assigned: 198, resolved: 165, pending: 33, avgResolutionTime: 22 },
+  { id: 2, teamName: "Crest settlement team", assigned: 144, resolved: 96, pending: 48, avgResolutionTime: 28 },
+  { id: 3, teamName: "Clearstream settlement team", assigned: 195, resolved: 156, pending: 39, avgResolutionTime: 18 },
+  { id: 4, teamName: "Domestic settlement team", assigned: 174, resolved: 159, pending: 15, avgResolutionTime: 25 },
 ];
 
 // Aging data for cases
