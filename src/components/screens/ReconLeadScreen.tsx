@@ -28,9 +28,9 @@ const teams = [
 
 // Aging data for cases
 const agingData = [
-  { range: "0-10 days", count: 28, color: "bg-success" },
-  { range: "10-20 days", count: 12, color: "bg-warning" },
-  { range: ">20 days", count: 4, color: "bg-destructive" },
+  { range: "0-10 days", count: 473, color: "bg-success" },
+  { range: "10-20 days", count: 97, color: "bg-warning" },
+  { range: ">20 days", count: 28, color: "bg-destructive" },
 ];
 
 // Function to compute exception counts from actual data
