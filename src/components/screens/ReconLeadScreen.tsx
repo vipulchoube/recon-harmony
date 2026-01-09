@@ -20,7 +20,7 @@ const autoMatchTrendData = [
 ];
 // Mock data for Recon Lead dashboard - using the 4 teams
 const teams = [
-  { id: 1, teamName: "Euroclear settlement team", assigned: 18, resolved: 15, pending: 3, avgResolutionTime: 22 },
+  { id: 1, teamName: "Euroclear settlement team", assigned: 202, resolved: 15, pending: 3, avgResolutionTime: 22 },
   { id: 2, teamName: "Crest settlement team", assigned: 12, resolved: 8, pending: 4, avgResolutionTime: 28 },
   { id: 3, teamName: "Clearstream settlement team", assigned: 15, resolved: 12, pending: 3, avgResolutionTime: 18 },
   { id: 4, teamName: "Domestic settlement team", assigned: 10, resolved: 9, pending: 1, avgResolutionTime: 25 },
@@ -37,15 +37,15 @@ const agingData = [
 function computeExceptionCounts(): { code: string; category: string; count: number; trend: string }[] {
   const ledgerRecords = parseCSV(sampleLedgerData);
   const statementRecords = parseCSV(sampleStatementData);
-  
+
   const statementMap = new Map<string, Record<string, string>>();
-  statementRecords.forEach(record => {
+  statementRecords.forEach((record) => {
     statementMap.set(record.TransactionRef, record);
   });
-  
+
   const exceptionCounts = new Map<ExceptionCode, number>();
-  
-  ledgerRecords.forEach(ledgerRecord => {
+
+  ledgerRecords.forEach((ledgerRecord) => {
     const transactionRef = ledgerRecord.TransactionRef;
     const statementRecord = statementMap.get(transactionRef);
     const tradeStatus = ledgerRecord.TradeStatus?.toUpperCase() || "";
@@ -53,9 +53,9 @@ function computeExceptionCounts(): { code: string; category: string; count: numb
     const isin = ledgerRecord["Security ISIN"] || "";
     const amount = parseInt(ledgerRecord.Amount || "0", 10);
     const openAmount = parseInt(ledgerRecord["Open Amount"] || "0", 10);
-    
+
     let code: ExceptionCode | null = null;
-    
+
     // 101: Feed Issue - No matching statement record
     if (!statementRecord) {
       code = "101";
@@ -64,7 +64,7 @@ function computeExceptionCounts(): { code: string; category: string; count: numb
       const manualSettlement = statementRecord.ManualSettlement?.toUpperCase() || "";
       const ledgerBalancePool = ledgerRecord.Balance_Pool || "";
       const statementBalancePool = statementRecord.Balance_Pool || "";
-      
+
       // 102: Cancelled Trade
       if (!code && tradeStatus === "CANCELLED" && statementState === "SETTLED") {
         code = "102";
@@ -93,12 +93,12 @@ function computeExceptionCounts(): { code: string; category: string; count: numb
         code = "OTHER";
       }
     }
-    
+
     if (code) {
       exceptionCounts.set(code, (exceptionCounts.get(code) || 0) + 1);
     }
   });
-  
+
   const categoryLabels: Record<string, string> = {
     "101": "Feed Issue",
     "102": "Cancelled Trade",
@@ -106,11 +106,11 @@ function computeExceptionCounts(): { code: string; category: string; count: numb
     "104": "Not Settled in Market",
     "105": "Wrong Account",
     "106": "Partial Settlement",
-    "OTHER": "Other",
+    OTHER: "Other",
   };
-  
+
   const trends = ["down", "stable", "up", "down", "stable", "down"];
-  
+
   return ["101", "102", "103", "104", "105", "106"].map((code, index) => ({
     code,
     category: categoryLabels[code],
@@ -255,23 +255,28 @@ export function ReconLeadScreen() {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={autoMatchTrendData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="month" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                  <YAxis domain={[75, 95]} className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(value) => `${value}%`} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px'
-                    }}
-                    formatter={(value: number) => [`${value}%`, 'Auto-Match']}
+                  <XAxis dataKey="month" className="text-xs" tick={{ fill: "hsl(var(--muted-foreground))" }} />
+                  <YAxis
+                    domain={[75, 95]}
+                    className="text-xs"
+                    tick={{ fill: "hsl(var(--muted-foreground))" }}
+                    tickFormatter={(value) => `${value}%`}
                   />
-                  <Line 
-                    type="monotone" 
-                    dataKey="percentage" 
-                    stroke="hsl(var(--primary))" 
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                    }}
+                    formatter={(value: number) => [`${value}%`, "Auto-Match"]}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="percentage"
+                    stroke="hsl(var(--primary))"
                     strokeWidth={2}
-                    dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2 }}
-                    activeDot={{ r: 6, fill: 'hsl(var(--primary))' }}
+                    dot={{ fill: "hsl(var(--primary))", strokeWidth: 2 }}
+                    activeDot={{ r: 6, fill: "hsl(var(--primary))" }}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -317,7 +322,7 @@ export function ReconLeadScreen() {
               </div>
             ))}
           </div>
-      </CardContent>
+        </CardContent>
       </Card>
 
       {/* Main Content Grid */}
