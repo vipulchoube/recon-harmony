@@ -21,7 +21,7 @@ const autoMatchTrendData = [
 // Mock data for Recon Lead dashboard - using the 4 teams
 const teams = [
   { id: 1, teamName: "Euroclear settlement team", assigned: 198, resolved: 165, pending: 33, avgResolutionTime: 22 },
-  { id: 2, teamName: "Crest settlement team", assigned: 144, resolved: 96, pending: 48, avgResolutionTime: 28 },
+  { id: 2, teamName: "Crest settlement team", assigned: 144, resolved: 118, pending: 26, avgResolutionTime: 28 },
   { id: 3, teamName: "Clearstream settlement team", assigned: 195, resolved: 156, pending: 39, avgResolutionTime: 18 },
   { id: 4, teamName: "Domestic settlement team", assigned: 174, resolved: 159, pending: 15, avgResolutionTime: 25 },
 ];
