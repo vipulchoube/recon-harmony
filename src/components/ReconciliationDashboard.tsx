@@ -61,8 +61,8 @@ const AUTO_ASSIGN_RULES: Record<ExceptionCode, string> = {
   '102': 'Domestic settlement team',
   '106': 'Euroclear settlement team',
   '101': '',
-  '103': '',
-  '104': '',
+  '103': 'Crest settlement team',
+  '104': 'Clearstream settlement team',
   '105': '',
   'OTHER': '',
 };
