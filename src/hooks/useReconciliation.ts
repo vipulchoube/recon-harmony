@@ -107,19 +107,42 @@ export function useReconciliation() {
         }));
 
         try {
-          // Call the AI edge function
-          const { data, error } = await supabase.functions.invoke("reconcile-record", {
-            body: {
-              ledgerRecord,
-              statementRecord,
-              index: i,
-            },
-          });
+          // Call the AI edge function with retry logic for rate limits
+          let data: any = null;
+          let lastError: any = null;
+          const maxRetries = 3;
+          
+          for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            const response = await supabase.functions.invoke("reconcile-record", {
+              body: {
+                ledgerRecord,
+                statementRecord,
+                index: i,
+              },
+            });
 
-          if (error) {
-            console.error("Edge function error:", error);
+            // Check for rate limit (429) - the error message contains the status info
+            if (response.error && response.error.message?.includes("Rate limits exceeded")) {
+              const backoffMs = Math.min(2000 * Math.pow(2, attempt), 15000);
+              addLog(`Rate limited on ${transactionRef}, retrying in ${(backoffMs / 1000).toFixed(0)}s (attempt ${attempt + 1}/${maxRetries})...`, "error");
+              await new Promise((resolve) => setTimeout(resolve, backoffMs));
+              lastError = response.error;
+              continue;
+            }
+
+            if (response.error) {
+              lastError = response.error;
+              break;
+            }
+
+            data = response.data;
+            lastError = null;
+            break;
+          }
+
+          if (lastError || !data) {
+            console.error("Edge function error:", lastError);
             addLog(`Error on record ${transactionRef}, using fallback analysis`, "error");
-            // Use fallback on error
             const fallback = fallbackAnalysis(ledgerRecord, statementRecord);
             processResult(fallback, ledgerRecord, statementRecord, i, exceptionRecords, otherExceptions, exceptionCounts);
             addLog(`Classified ${transactionRef} as ${fallback.exception_code} (fallback)`, "info");
@@ -204,9 +227,9 @@ export function useReconciliation() {
           },
         }));
 
-        // Small delay between requests to avoid rate limiting
+        // Delay between requests to avoid rate limiting
         if (i < ledgerRecords.length - 1) {
-          await new Promise((resolve) => setTimeout(resolve, 300));
+          await new Promise((resolve) => setTimeout(resolve, 1500));
         }
       }
 
